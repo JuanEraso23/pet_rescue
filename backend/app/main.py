@@ -1,4 +1,7 @@
-﻿from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+from app.database.connection import get_db
 
 app = FastAPI(
     title="Pet Rescue API",
@@ -20,4 +23,15 @@ def read_root():
 def health_check():
     return {
         "status": "ok"
+    }
+
+
+@app.get("/health-db")
+def health_db(db: Session = Depends(get_db)):
+    """Verifica la conexion con PostgreSQL."""
+    result = db.execute(text("SELECT COUNT(*) FROM mascotas")).scalar()
+    return {
+        "status": "ok",
+        "database": "conectada",
+        "mascotas_registradas": result,
     }
