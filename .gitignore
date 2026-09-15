@@ -36,3 +36,8 @@ Thumbs.db
 # Archivos temporales
 *.log
 *.tmp
+
+# Variables de entorno
+.env
+backend/.env
+backend/.env.postgresql

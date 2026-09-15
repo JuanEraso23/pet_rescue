@@ -1,35 +1,42 @@
-# ============================================================
-# Pet Rescue - Conexión a PostgreSQL
-# ============================================================
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from dotenv import load_dotenv
 
-# Cargar variables desde backend/.env
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "sqlite:///./pet_rescue_local.db",
+)
 
-if not DATABASE_URL:
-    raise RuntimeError(
-        "No se encontró DATABASE_URL. "
-        "Verifica que exista backend/.env con la variable DATABASE_URL."
-    )
+engine_options = {}
 
-# Motor de conexión
-engine = create_engine(DATABASE_URL, echo=False)
+if DATABASE_URL.startswith("sqlite"):
+    engine_options["connect_args"] = {
+        "check_same_thread": False,
+    }
 
-# Fábrica de sesiones
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_engine(
+    DATABASE_URL,
+    echo=False,
+    **engine_options,
+)
 
-# Clase base para los modelos
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+)
+
 Base = declarative_base()
 
 
 def get_db():
-    """Dependencia de FastAPI para obtener una sesión de base de datos."""
     db = SessionLocal()
+
     try:
         yield db
     finally:
