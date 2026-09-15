@@ -1,4 +1,4 @@
-﻿# Pet Rescue
+﻿# Pet Rescue.
 
 Producto de software desarrollado para la materia Ingeniería de Software 2 mediante Scrum.
 
