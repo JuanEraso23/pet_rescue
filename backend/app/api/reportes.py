@@ -8,7 +8,11 @@ from app.models.mascota import Mascota
 from app.models.reporte import Reporte
 from app.models.contacto_reporte import ContactoReporte
 from app.schemas.reporte import ReporteCreate
-from app.schemas.contacto_reporte import ContactoCreate
+from app.schemas.contacto_reporte import (
+ContactoCreate,
+ContactoOut,
+ContactoPublico,
+)
 
 
 router = APIRouter(
@@ -30,7 +34,8 @@ def generar_codigo(db: Session) -> str:
 
 
 @router.post(
-    "",
+    "/{reporte_id}/contacto",
+	response_model=ContactoOut,
     status_code=status.HTTP_201_CREATED,
 )
 def crear_reporte(
@@ -87,7 +92,11 @@ def crear_reporte(
         ) from error
 
 
-@router.get("/{reporte_id}")
+@router.get(
+    "/{reporte_id}/contacto",
+    response_model=ContactoPublico,
+)
+
 def consultar_reporte(
     reporte_id: int,
     db: Session = Depends(get_db),
@@ -259,14 +268,50 @@ def consultar_contacto(
             detail="Este reporte no tiene contacto registrado.",
         )
 
-    # 3. Aplicar privacidad
-    if contacto.mostrar_publicamente:
-        valor_mostrado = contacto.valor_contacto
-    else:
-        valor_mostrado = "Contacto privado"
+        # 3. Validar y normalizar el valor según el tipo
+    	valor = datos.valor_contacto.strip()
 
-    return {
-        "tipo_contacto": contacto.tipo_contacto,
-        "valor_contacto": valor_mostrado,
-        "mostrar_publicamente": contacto.mostrar_publicamente,
-    }
+    	if not valor:
+        	raise HTTPException(
+            	status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            	detail="El medio de contacto no puede estar vacío.",
+        	)
+
+    	if datos.tipo_contacto == "Telefono":
+        	valor_limpio = (
+            	valor
+            	.replace(" ", "")
+            	.replace("-", "")
+            	.replace("+", "")
+        	)
+
+        if not valor_limpio.isdigit():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="El teléfono solo puede contener dígitos, espacios, guiones o el signo más.",
+            )
+
+        if not 7 <= len(valor_limpio) <= 15:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="El teléfono debe tener entre 7 y 15 dígitos.",
+            )
+
+        valor = valor_limpio
+
+    	elif datos.tipo_contacto == "Correo":
+        	patron = r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
+
+        if re.fullmatch(patron, valor) is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="El correo electrónico no tiene un formato válido.",
+            )
+
+        valor = valor.lower()
+
+    	else:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="El tipo de contacto debe ser Telefono o Correo.",
+        )
