@@ -14,7 +14,7 @@ CREATE TABLE mascotas (
     especie VARCHAR(50) NOT NULL CHECK (especie IN ('Perro', 'Gato', 'Ave', 'Roedor', 'Otro')),
     raza VARCHAR(100),
     color VARCHAR(50) NOT NULL,
-    tamano VARCHAR(20) NOT NULL CHECK (tamano IN ('Pequeño', 'Mediano', 'Grande')),
+    tamano VARCHAR(20) NOT NULL CHECK (tamano IN (U&'Peque\00F1o', 'Mediano', 'Grande')),
     edad_aproximada INTEGER CHECK (edad_aproximada >= 0),
     senas_particulares TEXT
 );

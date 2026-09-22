@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from app.api.reportes import router as reportes_router
 from app.database.connection import get_db
 
 app = FastAPI(
@@ -9,6 +11,18 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.include_router(reportes_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:8080",
+        "http://localhost:8080",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def read_root():
