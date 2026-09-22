@@ -24,5 +24,13 @@ class Reporte(Base):
     # Relación con Mascota
     mascota = relationship("Mascota", backref="reportes")
 
+    # Relación 1 a 1 con Contacto (HU5)
+    contacto = relationship(
+        "ContactoReporte",
+        back_populates="reporte",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
     def __repr__(self):
         return f"<Reporte id={self.id} codigo={self.codigo} estado={self.estado}>"
