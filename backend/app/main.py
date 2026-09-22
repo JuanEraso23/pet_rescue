@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from app.api.reportes import router as reportes_router
 from app.database.connection import get_db
 
 app = FastAPI(
@@ -9,6 +10,7 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.include_router(reportes_router)
 
 @app.get("/")
 def read_root():
