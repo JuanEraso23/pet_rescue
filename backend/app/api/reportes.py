@@ -73,13 +73,16 @@ def crear_reporte(
         }
 
     except Exception as error:
-        db.rollback()
+    	db.rollback()
 
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="No fue posible registrar el reporte.",
-        ) from error
+    	print("ERROR AL REGISTRAR REPORTE:")
+    	print(repr(error))
 
+    	raise HTTPException(
+        	status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        	detail="No fue posible registrar el reporte.",
+    	) from error
+	
 
 @router.get("/{reporte_id}")
 def consultar_reporte(
