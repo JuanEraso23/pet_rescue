@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
+import re
 
 from app.database.connection import get_db
 from app.models.mascota import Mascota
 from app.models.reporte import Reporte
+from app.models.contacto_reporte import ContactoReporte
 from app.schemas.reporte import ReporteCreate
+from app.schemas.contacto_reporte import ContactoCreate
 
 
 router = APIRouter(
@@ -73,16 +76,16 @@ def crear_reporte(
         }
 
     except Exception as error:
-    	db.rollback()
+        db.rollback()
 
-    	print("ERROR AL REGISTRAR REPORTE:")
-    	print(repr(error))
+        print("ERROR AL REGISTRAR REPORTE:")
+        print(repr(error))
 
-    	raise HTTPException(
-        	status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        	detail="No fue posible registrar el reporte.",
-    	) from error
-	
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="No fue posible registrar el reporte.",
+        ) from error
+
 
 @router.get("/{reporte_id}")
 def consultar_reporte(
@@ -130,4 +133,140 @@ def consultar_reporte(
             "senas_particulares":
                 reporte.mascota.senas_particulares,
         },
+    }
+
+
+# ============================================================
+# HU5 - Medio de contacto seguro
+# ============================================================
+
+@router.post(
+    "/{reporte_id}/contacto",
+    status_code=status.HTTP_201_CREATED,
+)
+def crear_contacto(
+    reporte_id: int,
+    datos: ContactoCreate,
+    db: Session = Depends(get_db),
+):
+    # 1. Verificar que el reporte existe
+    reporte = db.get(Reporte, reporte_id)
+
+    if reporte is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reporte no encontrado.",
+        )
+
+    # 2. Verificar que no exista ya un contacto
+    existente = db.execute(
+        select(ContactoReporte).where(
+            ContactoReporte.reporte_id == reporte_id
+        )
+    ).scalar_one_or_none()
+
+    if existente is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Este reporte ya tiene un contacto registrado.",
+        )
+
+    # 3. Validar formato segun tipo
+    valor = datos.valor_contacto
+
+    if datos.tipo_contacto == "Telefono":
+        # Permitir solo digitos, espacios, guiones y + (formato flexible)
+        valor_limpio = valor.replace(" ", "").replace("-", "").replace("+", "")
+
+        if not valor_limpio.isdigit():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="El telefono solo puede contener digitos.",
+            )
+
+        if not (7 <= len(valor_limpio) <= 15):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="El telefono debe tener entre 7 y 15 digitos.",
+            )
+    elif datos.tipo_contacto == "Correo":
+        patron = r"^[\w\.\-]+@[\w\.\-]+\.\w+$"
+
+        if not re.match(patron, valor):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="El correo electronico no tiene un formato valido.",
+            )
+
+    # 4. Guardar
+    contacto = ContactoReporte(
+        reporte_id=reporte_id,
+        tipo_contacto=datos.tipo_contacto,
+        valor_contacto=valor,
+        mostrar_publicamente=datos.mostrar_publicamente,
+    )
+
+    try:
+        db.add(contacto)
+        db.commit()
+        db.refresh(contacto)
+
+        return {
+            "id": contacto.id,
+            "reporte_id": contacto.reporte_id,
+            "tipo_contacto": contacto.tipo_contacto,
+            "valor_contacto": contacto.valor_contacto,
+            "mostrar_publicamente": contacto.mostrar_publicamente,
+            "fecha_creacion": contacto.fecha_creacion,
+        }
+
+    except Exception as error:
+        db.rollback()
+
+        print("ERROR AL GUARDAR CONTACTO:")
+        print(repr(error))
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="No fue posible guardar el contacto.",
+        ) from error
+
+
+@router.get("/{reporte_id}/contacto")
+def consultar_contacto(
+    reporte_id: int,
+    db: Session = Depends(get_db),
+):
+    # 1. Verificar que el reporte existe
+    reporte = db.get(Reporte, reporte_id)
+
+    if reporte is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reporte no encontrado.",
+        )
+
+    # 2. Buscar el contacto
+    contacto = db.execute(
+        select(ContactoReporte).where(
+            ContactoReporte.reporte_id == reporte_id
+        )
+    ).scalar_one_or_none()
+
+    if contacto is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Este reporte no tiene contacto registrado.",
+        )
+
+    # 3. Aplicar privacidad
+    if contacto.mostrar_publicamente:
+        valor_mostrado = contacto.valor_contacto
+    else:
+        valor_mostrado = "Contacto privado"
+
+    return {
+        "tipo_contacto": contacto.tipo_contacto,
+        "valor_contacto": valor_mostrado,
+        "mostrar_publicamente": contacto.mostrar_publicamente,
     }
