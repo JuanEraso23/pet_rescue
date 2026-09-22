@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../services/reporte_service.dart';
@@ -13,8 +16,9 @@ class RegistroReporteScreen extends StatefulWidget {
 }
 
 class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  static const int _tamanoMaximo = 5 * 1024 * 1024;
 
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final ReporteService _service = ReporteService();
 
   final TextEditingController _tituloController = TextEditingController();
@@ -37,6 +41,10 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
   String? _tamano;
   DateTime? _fechaExtravio;
   TimeOfDay? _horaExtravio;
+
+  Uint8List? _fotografiaBytes;
+  String? _nombreFotografia;
+  int? _tamanoFotografia;
 
   bool _cargando = false;
 
@@ -62,7 +70,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
       lastDate: DateTime.now(),
     );
 
-    if (fecha != null) {
+    if (fecha != null && mounted) {
       setState(() {
         _fechaExtravio = fecha;
       });
@@ -75,11 +83,69 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
       initialTime: TimeOfDay.now(),
     );
 
-    if (hora != null) {
+    if (hora != null && mounted) {
       setState(() {
         _horaExtravio = hora;
       });
     }
+  }
+
+  Future<void> _seleccionarFotografia() async {
+    try {
+      final PlatformFile? archivo = await FilePicker.pickFile(
+        type: FileType.custom,
+        allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp'],
+      );
+
+      if (archivo == null) {
+        return;
+      }
+
+      final extension = archivo.extension?.toLowerCase();
+
+      const extensionesPermitidas = {'jpg', 'jpeg', 'png', 'webp'};
+
+      if (extension == null || !extensionesPermitidas.contains(extension)) {
+        _mostrarMensaje('Selecciona una fotografia JPG, PNG o WebP.');
+        return;
+      }
+
+      final Uint8List bytes = await archivo.readAsBytes();
+
+      if (bytes.isEmpty) {
+        _mostrarMensaje('La fotografia seleccionada esta vacia.');
+        return;
+      }
+
+      if (bytes.length > _tamanoMaximo) {
+        _mostrarMensaje('La fotografia no puede superar los 5 MB.');
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _fotografiaBytes = bytes;
+        _nombreFotografia = archivo.name;
+        _tamanoFotografia = bytes.length;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      _mostrarMensaje('No fue posible seleccionar la fotografia.');
+    }
+  }
+
+  void _retirarFotografia() {
+    setState(() {
+      _fotografiaBytes = null;
+      _nombreFotografia = null;
+      _tamanoFotografia = null;
+    });
   }
 
   Future<void> _publicarReporte() async {
@@ -97,12 +163,12 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
     }
 
     if (_tamano == null) {
-      _mostrarMensaje('Selecciona el tamaño.');
+      _mostrarMensaje('Selecciona el tamaÃ±o.');
       return;
     }
 
     if (_fechaExtravio == null) {
-      _mostrarMensaje('Selecciona la fecha del extravío.');
+      _mostrarMensaje('Selecciona la fecha del extravio.');
       return;
     }
 
@@ -127,6 +193,14 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
 
     try {
       final reporte = await _service.crearReporte(datos);
+
+      if (_fotografiaBytes != null && _nombreFotografia != null) {
+        await _service.cargarFotografia(
+          reporteId: reporte.id,
+          bytes: _fotografiaBytes!,
+          nombreArchivo: _nombreFotografia!,
+        );
+      }
 
       if (!mounted) {
         return;
@@ -174,7 +248,6 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
 
   String _formatearFecha(DateTime fecha) {
     final mes = fecha.month.toString().padLeft(2, '0');
-
     final dia = fecha.day.toString().padLeft(2, '0');
 
     return '${fecha.year}-$mes-$dia';
@@ -186,10 +259,21 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
     }
 
     final horas = hora.hour.toString().padLeft(2, '0');
-
     final minutos = hora.minute.toString().padLeft(2, '0');
 
     return '$horas:$minutos';
+  }
+
+  String _formatearTamanoArchivo(int bytes) {
+    final kilobytes = bytes / 1024;
+
+    if (kilobytes < 1024) {
+      return '${kilobytes.toStringAsFixed(1)} KB';
+    }
+
+    final megabytes = kilobytes / 1024;
+
+    return '${megabytes.toStringAsFixed(2)} MB';
   }
 
   void _mostrarMensaje(String mensaje) {
@@ -206,7 +290,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
     }
 
     if (texto.length < minimo) {
-      return '$nombre debe tener mínimo '
+      return '$nombre debe tener minimo '
           '$minimo caracteres.';
     }
 
@@ -223,7 +307,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
     final edad = int.tryParse(texto);
 
     if (edad == null) {
-      return 'La edad debe ser un número entero.';
+      return 'La edad debe ser un numero entero.';
     }
 
     if (edad < 0) {
@@ -231,6 +315,112 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
     }
 
     return null;
+  }
+
+  Widget _construirSeccionFotografia() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Fotografia reciente',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF183B4E),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Agrega una fotografia para facilitar la '
+          'identificacion de la mascota.',
+        ),
+        const SizedBox(height: 16),
+        if (_fotografiaBytes == null)
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _cargando ? null : _seleccionarFotografia,
+              icon: const Icon(Icons.add_photo_alternate),
+              label: const Text('Seleccionar fotografia'),
+            ),
+          )
+        else
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Image.memory(
+                    _fotografiaBytes!,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.broken_image_outlined, size: 50),
+                            SizedBox(height: 8),
+                            Text(
+                              'No fue posible mostrar '
+                              'la vista previa.',
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.image_outlined),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _nombreFotografia ?? 'Fotografia',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatearTamanoArchivo(_tamanoFotografia ?? 0),
+                              style: const TextStyle(color: Color(0xFF667781)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _cargando ? null : _retirarFotografia,
+                        tooltip: 'Retirar fotografia',
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 8),
+        const Text(
+          'Formatos permitidos: JPG, PNG o WebP. '
+          'TamaÃ±o maximo: 5 MB.',
+          style: TextStyle(color: Color(0xFF667781), fontSize: 13),
+        ),
+      ],
+    );
   }
 
   @override
@@ -252,19 +442,19 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Completa la información para '
+                'Completa la informacion para '
                 'publicar el reporte.',
               ),
               const SizedBox(height: 24),
               TextFormField(
                 controller: _tituloController,
                 decoration: const InputDecoration(
-                  labelText: 'Título del reporte',
-                  hintText: 'Ejemplo: Max se perdió',
+                  labelText: 'Titulo del reporte',
+                  hintText: 'Ejemplo: Max se perdio',
                   prefixIcon: Icon(Icons.title),
                 ),
                 validator: (valor) {
-                  return _validarTexto(valor, 'El título', 3);
+                  return _validarTexto(valor, 'El titulo', 3);
                 },
               ),
               const SizedBox(height: 16),
@@ -272,20 +462,18 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
                 controller: _descripcionController,
                 maxLines: 4,
                 decoration: const InputDecoration(
-                  labelText: 'Descripción',
-                  hintText:
-                      'Describe brevemente '
-                      'lo ocurrido',
+                  labelText: 'Descripcion',
+                  hintText: 'Describe brevemente lo ocurrido',
                   prefixIcon: Icon(Icons.description),
                   alignLabelWithHint: true,
                 ),
                 validator: (valor) {
-                  return _validarTexto(valor, 'La descripción', 10);
+                  return _validarTexto(valor, 'La descripcion', 10);
                 },
               ),
               const SizedBox(height: 28),
               Text(
-                'Características de la mascota',
+                'Caracteristicas de la mascota',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFF183B4E),
@@ -303,11 +491,13 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
                 ) {
                   return DropdownMenuItem(value: especie, child: Text(especie));
                 }).toList(),
-                onChanged: (valor) {
-                  setState(() {
-                    _especie = valor;
-                  });
-                },
+                onChanged: _cargando
+                    ? null
+                    : (valor) {
+                        setState(() {
+                          _especie = valor;
+                        });
+                      },
                 validator: (valor) {
                   if (valor == null) {
                     return 'Selecciona la especie.';
@@ -349,20 +539,22 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
               DropdownButtonFormField<String>(
                 initialValue: _tamano,
                 decoration: const InputDecoration(
-                  labelText: 'Tamaño',
+                  labelText: 'TamaÃ±o',
                   prefixIcon: Icon(Icons.straighten),
                 ),
-                items: const ['Pequeño', 'Mediano', 'Grande'].map((tamano) {
+                items: const ['PequeÃ±o', 'Mediano', 'Grande'].map((tamano) {
                   return DropdownMenuItem(value: tamano, child: Text(tamano));
                 }).toList(),
-                onChanged: (valor) {
-                  setState(() {
-                    _tamano = valor;
-                  });
-                },
+                onChanged: _cargando
+                    ? null
+                    : (valor) {
+                        setState(() {
+                          _tamano = valor;
+                        });
+                      },
                 validator: (valor) {
                   if (valor == null) {
-                    return 'Selecciona el tamaño.';
+                    return 'Selecciona el tamaÃ±o.';
                   }
 
                   return null;
@@ -384,17 +576,17 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
                 controller: _senasController,
                 maxLines: 3,
                 decoration: const InputDecoration(
-                  labelText: 'Señas particulares',
-                  hintText:
-                      'Marcas, cicatrices '
-                      'o accesorios',
+                  labelText: 'SeÃ±as particulares',
+                  hintText: 'Marcas, cicatrices o accesorios',
                   prefixIcon: Icon(Icons.search),
                   alignLabelWithHint: true,
                 ),
               ),
               const SizedBox(height: 28),
+              _construirSeccionFotografia(),
+              const SizedBox(height: 28),
               Text(
-                'Información del extravío',
+                'Informacion del extravio',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFF183B4E),
@@ -404,26 +596,26 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
               TextFormField(
                 controller: _ubicacionController,
                 decoration: const InputDecoration(
-                  labelText: 'Ubicación aproximada',
+                  labelText: 'Ubicacion aproximada',
                   hintText: 'Ejemplo: Sector centro',
                   prefixIcon: Icon(Icons.location_on),
                 ),
                 validator: (valor) {
-                  return _validarTexto(valor, 'La ubicación', 3);
+                  return _validarTexto(valor, 'La ubicacion', 3);
                 },
               ),
               const SizedBox(height: 12),
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.calendar_month),
-                  title: const Text('Fecha del extravío'),
+                  title: const Text('Fecha del extravio'),
                   subtitle: Text(
                     _fechaExtravio == null
                         ? 'Seleccionar fecha'
                         : _formatearFecha(_fechaExtravio!),
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: _seleccionarFecha,
+                  onTap: _cargando ? null : _seleccionarFecha,
                 ),
               ),
               Card(
@@ -436,7 +628,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
                         : _horaExtravio!.format(context),
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: _seleccionarHora,
+                  onTap: _cargando ? null : _seleccionarHora,
                 ),
               ),
               const SizedBox(height: 24),

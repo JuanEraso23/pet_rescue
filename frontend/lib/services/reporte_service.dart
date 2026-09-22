@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
+import '../models/fotografia_reporte.dart';
 import '../models/reporte.dart';
 
 class ReporteService {
@@ -26,7 +29,97 @@ class ReporteService {
     } on http.ClientException {
       throw Exception('No fue posible conectarse con el servidor.');
     } on FormatException {
-      throw Exception('El servidor devolvió una respuesta inválida.');
+      throw Exception('El servidor devolvio una respuesta invalida.');
+    }
+  }
+
+  Future<FotografiaReporte> cargarFotografia({
+    required int reporteId,
+    required Uint8List bytes,
+    required String nombreArchivo,
+  }) async {
+    try {
+      final extension = nombreArchivo.split('.').last.toLowerCase();
+
+      final MediaType tipoMime;
+
+      switch (extension) {
+        case 'jpg':
+        case 'jpeg':
+          tipoMime = MediaType('image', 'jpeg');
+          break;
+
+        case 'png':
+          tipoMime = MediaType('image', 'png');
+          break;
+
+        case 'webp':
+          tipoMime = MediaType('image', 'webp');
+          break;
+
+        default:
+          throw Exception('Formato de fotografia no permitido.');
+      }
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/reportes/$reporteId/fotografias'),
+      );
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'archivo',
+          bytes,
+          filename: nombreArchivo,
+          contentType: tipoMime,
+        ),
+      );
+
+      final streamedResponse = await request.send();
+
+      final response = await http.Response.fromStream(streamedResponse);
+
+      final cuerpo =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+
+      if (response.statusCode == 201) {
+        return FotografiaReporte.fromJson(cuerpo);
+      }
+
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvio una respuesta invalida.');
+    }
+  }
+
+  Future<List<FotografiaReporte>> consultarFotografias(int reporteId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/reportes/$reporteId/fotografias'),
+      );
+
+      if (response.statusCode == 200) {
+        final cuerpo =
+            jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>;
+
+        return cuerpo
+            .map(
+              (elemento) =>
+                  FotografiaReporte.fromJson(elemento as Map<String, dynamic>),
+            )
+            .toList();
+      }
+
+      final cuerpo =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvio una respuesta invalida.');
     }
   }
 
@@ -47,7 +140,7 @@ class ReporteService {
     } on http.ClientException {
       throw Exception('No fue posible conectarse con el servidor.');
     } on FormatException {
-      throw Exception('El servidor devolvió una respuesta inválida.');
+      throw Exception('El servidor devolvio una respuesta invalida.');
     }
   }
 
@@ -66,6 +159,6 @@ class ReporteService {
       }
     }
 
-    return 'Ocurrió un error inesperado.';
+    return 'Ocurrio un error inesperado.';
   }
 }
