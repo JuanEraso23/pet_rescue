@@ -36,3 +36,6 @@ Thumbs.db
 # Archivos temporales
 *.log
 *.tmp
+
+backend/uploads/reportes/*
+!backend/uploads/reportes/.gitkeep
