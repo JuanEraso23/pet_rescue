@@ -6,6 +6,7 @@ import 'package:http_parser/http_parser.dart';
 
 import '../models/fotografia_reporte.dart';
 import '../models/reporte.dart';
+import '../models/contacto_reporte.dart';
 
 class ReporteService {
   static const String baseUrl = 'http://127.0.0.1:8000';
@@ -24,6 +25,38 @@ class ReporteService {
       if (response.statusCode == 201) {
         return ReporteCreado.fromJson(cuerpo);
       }
+
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvio una respuesta invalida.');
+    }
+  }
+
+  Future<void> crearContacto({
+    required int reporteId,
+    required String tipoContacto,
+    required String valorContacto,
+    required bool mostrarPublicamente,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/reportes/$reporteId/contacto'),
+        headers: const {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({
+          'tipo_contacto': tipoContacto,
+          'valor_contacto': valorContacto,
+          'mostrar_publicamente': mostrarPublicamente,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        return;
+      }
+
+      final cuerpo =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
 
       throw Exception(_obtenerMensajeError(cuerpo));
     } on http.ClientException {
@@ -110,6 +143,34 @@ class ReporteService {
                   FotografiaReporte.fromJson(elemento as Map<String, dynamic>),
             )
             .toList();
+      }
+
+      final cuerpo =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvio una respuesta invalida.');
+    }
+  }
+
+  Future<ContactoReporte?> consultarContacto(int reporteId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/reportes/$reporteId/contacto'),
+      );
+
+      if (response.statusCode == 200) {
+        final cuerpo =
+            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+
+        return ContactoReporte.fromJson(cuerpo);
+      }
+
+      if (response.statusCode == 404) {
+        return null;
       }
 
       final cuerpo =
