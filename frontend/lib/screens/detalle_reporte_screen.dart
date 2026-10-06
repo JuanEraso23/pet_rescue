@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/fotografia_reporte.dart';
 import '../models/reporte.dart';
+import '../models/contacto_reporte.dart';
 import '../services/reporte_service.dart';
 
 class DetalleReporteScreen extends StatefulWidget {
@@ -20,6 +21,7 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
 
   late Future<DetalleReporte> _reporte;
   late Future<List<FotografiaReporte>> _fotografias;
+  late Future<ContactoReporte?> _contacto;
 
   @override
   void initState() {
@@ -32,6 +34,8 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
     _reporte = _service.consultarReporte(widget.reporteId);
 
     _fotografias = _service.consultarFotografias(widget.reporteId);
+
+    _contacto = _service.consultarContacto(widget.reporteId);
   }
 
   void _reintentar() {
@@ -188,6 +192,75 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
     );
   }
 
+  Widget _construirContacto() {
+    return FutureBuilder<ContactoReporte?>(
+      future: _contacto,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Column(
+            children: [
+              const Icon(
+                Icons.error_outline,
+                color: Colors.redAccent,
+                size: 40,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'No fue posible consultar el medio de contacto.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _reintentar,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar'),
+              ),
+            ],
+          );
+        }
+
+        final contacto = snapshot.data;
+
+        if (contacto == null) {
+          return const Column(
+            children: [
+              Icon(
+                Icons.contact_phone_outlined,
+                size: 42,
+                color: Color(0xFF667781),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Medio de contacto no registrado',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            _FilaDato(etiqueta: 'Tipo', valor: contacto.tipoContacto),
+            _FilaDato(etiqueta: 'Contacto', valor: contacto.valorContacto),
+            _FilaDato(
+              etiqueta: 'Visibilidad',
+              valor: contacto.mostrarPublicamente ? 'Publico' : 'Privado',
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -224,7 +297,7 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
                 _cargarInformacion();
               });
 
-              await Future.wait([_reporte, _fotografias]);
+              await Future.wait([_reporte, _fotografias, _contacto]);
             },
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -304,6 +377,11 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
                       valor: reporte.horaExtravio ?? 'No registrada',
                     ),
                   ],
+                ),
+                const SizedBox(height: 16),
+                _SeccionDetalle(
+                  titulo: 'Medio de contacto',
+                  children: [_construirContacto()],
                 ),
               ],
             ),

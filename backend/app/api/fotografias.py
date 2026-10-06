@@ -129,6 +129,9 @@ async def cargar_fotografia(
     except Exception as error:
         db.rollback()
 
+        print("ERROR AL GUARDAR FOTOGRAFIA:")
+        print(repr(error))
+
         if ruta_completa.exists():
             ruta_completa.unlink()
 
@@ -144,6 +147,7 @@ async def cargar_fotografia(
 @router.get(
     "/{reporte_id}/fotografias",
 )
+
 def consultar_fotografias(
     reporte_id: int,
     db: Session = Depends(get_db),

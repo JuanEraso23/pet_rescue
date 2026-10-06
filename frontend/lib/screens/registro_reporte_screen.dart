@@ -37,8 +37,12 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
 
   final TextEditingController _ubicacionController = TextEditingController();
 
+  final TextEditingController _contactoController = TextEditingController();
+
   String? _especie;
   String? _tamano;
+  String? _tipoContacto;
+  bool _mostrarPublicamente = true;
   DateTime? _fechaExtravio;
   TimeOfDay? _horaExtravio;
 
@@ -58,6 +62,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
     _edadController.dispose();
     _senasController.dispose();
     _ubicacionController.dispose();
+    _contactoController.dispose();
 
     super.dispose();
   }
@@ -202,6 +207,13 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
         );
       }
 
+      await _service.crearContacto(
+        reporteId: reporte.id,
+        tipoContacto: _tipoContacto!,
+        valorContacto: _contactoController.text.trim(),
+        mostrarPublicamente: _mostrarPublicamente,
+      );
+
       if (!mounted) {
         return;
       }
@@ -317,6 +329,42 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
     return null;
   }
 
+  String? _validarContacto(String? valor) {
+    final contacto = valor?.trim() ?? '';
+
+    if (contacto.isEmpty) {
+      return 'El medio de contacto es obligatorio.';
+    }
+
+    if (_tipoContacto == 'Telefono') {
+      final telefonoLimpio = contacto
+          .replaceAll(' ', '')
+          .replaceAll('-', '')
+          .replaceAll('+', '');
+
+      if (!RegExp(r'^\d+$').hasMatch(telefonoLimpio)) {
+        return 'El telefono solo puede contener digitos, espacios, '
+            'guiones o el signo mas.';
+      }
+
+      if (telefonoLimpio.length < 7 || telefonoLimpio.length > 15) {
+        return 'El telefono debe tener entre 7 y 15 digitos.';
+      }
+    }
+
+    if (_tipoContacto == 'Correo') {
+      final correoValido = RegExp(
+        r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
+      ).hasMatch(contacto);
+
+      if (!correoValido) {
+        return 'El correo electronico no tiene un formato valido.';
+      }
+    }
+
+    return null;
+  }
+
   Widget _construirSeccionFotografia() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,6 +466,98 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
           'Formatos permitidos: JPG, PNG o WebP. '
           'TamaÃ±o maximo: 5 MB.',
           style: TextStyle(color: Color(0xFF667781), fontSize: 13),
+        ),
+      ],
+    );
+  }
+
+  Widget _construirSeccionContacto() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Medio de contacto',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF183B4E),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Ingresa un telefono o correo para que puedan '
+          'comunicarse contigo.',
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          initialValue: _tipoContacto,
+          decoration: const InputDecoration(
+            labelText: 'Tipo de contacto',
+            prefixIcon: Icon(Icons.contact_phone),
+          ),
+          items: const [
+            DropdownMenuItem(value: 'Telefono', child: Text('Telefono')),
+            DropdownMenuItem(value: 'Correo', child: Text('Correo')),
+          ],
+          onChanged: _cargando
+              ? null
+              : (valor) {
+                  setState(() {
+                    _tipoContacto = valor;
+                  });
+
+                  _formKey.currentState?.validate();
+                },
+          validator: (valor) {
+            if (valor == null) {
+              return 'Selecciona el tipo de contacto.';
+            }
+
+            return null;
+          },
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _contactoController,
+          keyboardType: _tipoContacto == 'Telefono'
+              ? TextInputType.phone
+              : TextInputType.emailAddress,
+          decoration: InputDecoration(
+            labelText: _tipoContacto == 'Correo'
+                ? 'Correo electronico'
+                : 'Numero telefonico',
+            hintText: _tipoContacto == 'Correo'
+                ? 'ejemplo@correo.com'
+                : '300 123 4567',
+            prefixIcon: Icon(
+              _tipoContacto == 'Correo'
+                  ? Icons.email_outlined
+                  : Icons.phone_outlined,
+            ),
+          ),
+          validator: _validarContacto,
+        ),
+        const SizedBox(height: 8),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Mostrar publicamente'),
+          subtitle: Text(
+            _mostrarPublicamente
+                ? 'El contacto aparecera en el detalle del reporte.'
+                : 'El valor se mostrara como Contacto privado.',
+          ),
+          value: _mostrarPublicamente,
+          onChanged: _cargando
+              ? null
+              : (valor) {
+                  setState(() {
+                    _mostrarPublicamente = valor;
+                  });
+                },
+          secondary: Icon(
+            _mostrarPublicamente
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
+          ),
         ),
       ],
     );
@@ -584,6 +724,8 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
               ),
               const SizedBox(height: 28),
               _construirSeccionFotografia(),
+              const SizedBox(height: 28),
+              _construirSeccionContacto(),
               const SizedBox(height: 28),
               Text(
                 'Informacion del extravio',
