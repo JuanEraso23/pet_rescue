@@ -18,8 +18,7 @@ class ReporteService {
         body: jsonEncode(datos),
       );
 
-      final cuerpo =
-          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final cuerpo = _decodificarMapa(response);
 
       if (response.statusCode == 201) {
         return ReporteCreado.fromJson(cuerpo);
@@ -79,8 +78,7 @@ class ReporteService {
 
       final response = await http.Response.fromStream(streamedResponse);
 
-      final cuerpo =
-          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final cuerpo = _decodificarMapa(response);
 
       if (response.statusCode == 201) {
         return FotografiaReporte.fromJson(cuerpo);
@@ -101,10 +99,13 @@ class ReporteService {
       );
 
       if (response.statusCode == 200) {
-        final cuerpo =
-            jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>;
+        final contenido = jsonDecode(utf8.decode(response.bodyBytes));
 
-        return cuerpo
+        if (contenido is! List) {
+          throw const FormatException();
+        }
+
+        return contenido
             .map(
               (elemento) =>
                   FotografiaReporte.fromJson(elemento as Map<String, dynamic>),
@@ -112,8 +113,7 @@ class ReporteService {
             .toList();
       }
 
-      final cuerpo =
-          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final cuerpo = _decodificarMapa(response);
 
       throw Exception(_obtenerMensajeError(cuerpo));
     } on http.ClientException {
@@ -129,8 +129,7 @@ class ReporteService {
         Uri.parse('$baseUrl/reportes/$reporteId'),
       );
 
-      final cuerpo =
-          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final cuerpo = _decodificarMapa(response);
 
       if (response.statusCode == 200) {
         return DetalleReporte.fromJson(cuerpo);
@@ -144,10 +143,57 @@ class ReporteService {
     }
   }
 
+  Future<String> actualizarEstado({
+    required int reporteId,
+    required String estado,
+  }) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/reportes/$reporteId/estado'),
+        headers: const {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({'estado': estado}),
+      );
+
+      final cuerpo = _decodificarMapa(response);
+
+      if (response.statusCode == 200) {
+        final mensaje = cuerpo['mensaje'];
+
+        if (mensaje is String && mensaje.isNotEmpty) {
+          return mensaje;
+        }
+
+        return 'Estado actualizado correctamente.';
+      }
+
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvio una respuesta invalida.');
+    }
+  }
+
+  Map<String, dynamic> _decodificarMapa(http.Response response) {
+    final contenido = utf8.decode(response.bodyBytes);
+
+    if (contenido.trim().isEmpty) {
+      return <String, dynamic>{};
+    }
+
+    final decoded = jsonDecode(contenido);
+
+    if (decoded is! Map<String, dynamic>) {
+      throw const FormatException();
+    }
+
+    return decoded;
+  }
+
   String _obtenerMensajeError(Map<String, dynamic> cuerpo) {
     final detalle = cuerpo['detail'];
 
-    if (detalle is String) {
+    if (detalle is String && detalle.isNotEmpty) {
       return detalle;
     }
 

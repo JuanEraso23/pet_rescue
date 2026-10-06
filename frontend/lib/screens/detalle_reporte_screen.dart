@@ -21,10 +21,11 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
   late Future<DetalleReporte> _reporte;
   late Future<List<FotografiaReporte>> _fotografias;
 
+  bool _actualizandoEstado = false;
+
   @override
   void initState() {
     super.initState();
-
     _cargarInformacion();
   }
 
@@ -38,6 +39,231 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
     setState(() {
       _cargarInformacion();
     });
+  }
+
+  Future<void> _refrescarInformacion() async {
+    setState(() {
+      _cargarInformacion();
+    });
+
+    await Future.wait([_reporte, _fotografias]);
+  }
+
+  Future<void> _solicitarCambioEstado({
+    required DetalleReporte reporte,
+    required String nuevoEstado,
+  }) async {
+    if (_actualizandoEstado) {
+      return;
+    }
+
+    final encontrado = nuevoEstado == 'Encontrado';
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(encontrado ? 'Marcar como encontrada' : 'Cerrar reporte'),
+          content: Text(
+            encontrado
+                ? '¿Confirmas que la mascota fue encontrada? '
+                      'Después de guardar el cambio, el reporte '
+                      'quedará en un estado final.'
+                : '¿Confirmas que deseas cerrar este reporte? '
+                      'Después de guardar el cambio, el reporte '
+                      'quedará en un estado final.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: const Text('Confirmar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmar != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _actualizandoEstado = true;
+    });
+
+    try {
+      final mensaje = await _service.actualizarEstado(
+        reporteId: reporte.id,
+        estado: nuevoEstado,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _cargarInformacion();
+      });
+
+      await _reporte;
+
+      if (!mounted) {
+        return;
+      }
+
+      _mostrarMensaje(mensaje, esError: false);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      _mostrarMensaje(
+        error.toString().replaceFirst('Exception: ', ''),
+        esError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _actualizandoEstado = false;
+        });
+      }
+    }
+  }
+
+  void _mostrarMensaje(String mensaje, {required bool esError}) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(mensaje),
+          backgroundColor: esError ? Colors.redAccent : const Color(0xFF007C83),
+        ),
+      );
+  }
+
+  bool _esEstadoFinal(String estado) {
+    return estado == 'Encontrado' || estado == 'Cerrado';
+  }
+
+  Color _colorEstado(String estado) {
+    switch (estado) {
+      case 'Encontrado':
+        return const Color(0xFFDDF5EF);
+
+      case 'Cerrado':
+        return const Color(0xFFE2E8F0);
+
+      default:
+        return const Color(0xFFFFF1C7);
+    }
+  }
+
+  IconData _iconoEstado(String estado) {
+    switch (estado) {
+      case 'Encontrado':
+        return Icons.check_circle_outline;
+
+      case 'Cerrado':
+        return Icons.lock_outline;
+
+      default:
+        return Icons.schedule_outlined;
+    }
+  }
+
+  Widget _construirAccionesEstado(DetalleReporte reporte) {
+    if (_esEstadoFinal(reporte.estado)) {
+      return Card(
+        color: _colorEstado(reporte.estado),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                _iconoEstado(reporte.estado),
+                color: const Color(0xFF183B4E),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Reporte ${reporte.estado.toLowerCase()}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF183B4E),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Este reporte se encuentra en un '
+                      'estado final y ya no puede modificarse.',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return _SeccionDetalle(
+      titulo: 'Actualizar estado',
+      children: [
+        const Text(
+          'Selecciona una acción únicamente cuando '
+          'tengas certeza sobre el estado del reporte.',
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            FilledButton.icon(
+              onPressed: _actualizandoEstado
+                  ? null
+                  : () {
+                      _solicitarCambioEstado(
+                        reporte: reporte,
+                        nuevoEstado: 'Encontrado',
+                      );
+                    },
+              icon: _actualizandoEstado
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check_circle_outline),
+              label: const Text('Marcar como encontrada'),
+            ),
+            OutlinedButton.icon(
+              onPressed: _actualizandoEstado
+                  ? null
+                  : () {
+                      _solicitarCambioEstado(
+                        reporte: reporte,
+                        nuevoEstado: 'Cerrado',
+                      );
+                    },
+              icon: const Icon(Icons.lock_outline),
+              label: const Text('Cerrar reporte'),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   Widget _construirFotografia() {
@@ -66,7 +292,7 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'No fue posible cargar la fotografia.',
+                    'No fue posible cargar la fotografía.',
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 12),
@@ -96,7 +322,7 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
                   ),
                   SizedBox(height: 12),
                   Text(
-                    'Fotografia pendiente',
+                    'Fotografía pendiente',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF183B4E),
@@ -104,8 +330,8 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
                   ),
                   SizedBox(height: 6),
                   Text(
-                    'Este reporte todavia no tiene '
-                    'una fotografia asociada.',
+                    'Este reporte todavía no tiene '
+                    'una fotografía asociada.',
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -155,7 +381,7 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
                           SizedBox(height: 10),
                           Text(
                             'No fue posible mostrar '
-                            'la fotografia.',
+                            'la fotografía.',
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -211,7 +437,7 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
 
           if (!snapshot.hasData) {
             return _VistaError(
-              mensaje: 'No se encontro la informacion del reporte.',
+              mensaje: 'No se encontró la información del reporte.',
               onReintentar: _reintentar,
             );
           }
@@ -219,13 +445,7 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
           final reporte = snapshot.data!;
 
           return RefreshIndicator(
-            onRefresh: () async {
-              setState(() {
-                _cargarInformacion();
-              });
-
-              await Future.wait([_reporte, _fotografias]);
-            },
+            onRefresh: _refrescarInformacion,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(20),
@@ -240,7 +460,8 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
                     ),
                     Chip(
                       label: Text(reporte.estado),
-                      backgroundColor: const Color(0xFFDDF5EF),
+                      avatar: Icon(_iconoEstado(reporte.estado), size: 18),
+                      backgroundColor: _colorEstado(reporte.estado),
                     ),
                     Chip(label: Text(reporte.codigo)),
                   ],
@@ -254,8 +475,10 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
+                _construirAccionesEstado(reporte),
+                const SizedBox(height: 16),
                 _SeccionDetalle(
-                  titulo: 'Fotografia reciente',
+                  titulo: 'Fotografía reciente',
                   children: [_construirFotografia()],
                 ),
                 const SizedBox(height: 16),
