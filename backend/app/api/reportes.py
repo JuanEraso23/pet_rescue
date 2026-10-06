@@ -13,6 +13,10 @@ from app.schemas.contacto_reporte import (
     ContactoOut,
     ContactoPublico,
 )
+from app.schemas.estado_reporte import (
+    EstadoReporteOut,
+    EstadoReporteUpdate,
+)
 from app.schemas.reporte import ReporteCreate
 
 
@@ -144,6 +148,99 @@ def consultar_reporte(
 
 
 # ============================================================
+# HU9 - Actualizar estado del reporte
+# ============================================================
+
+
+@router.patch(
+    "/{reporte_id}/estado",
+    response_model=EstadoReporteOut,
+    status_code=status.HTTP_200_OK,
+)
+def actualizar_estado_reporte(
+    reporte_id: int,
+    datos: EstadoReporteUpdate,
+    db: Session = Depends(get_db),
+):
+    reporte = db.get(
+        Reporte,
+        reporte_id,
+    )
+
+    if reporte is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reporte no encontrado.",
+        )
+
+    if reporte.estado == datos.estado:
+        return {
+            "id": reporte.id,
+            "codigo": reporte.codigo,
+            "estado": reporte.estado,
+            "mensaje": (
+                "El reporte ya se encuentra "
+                "en el estado solicitado."
+            ),
+        }
+
+    estados_finales = {
+        "Encontrado",
+        "Cerrado",
+    }
+
+    if reporte.estado in estados_finales:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "No se puede modificar un reporte "
+                "que se encuentra en un estado final."
+            ),
+        )
+
+    if reporte.estado != "Activo":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "La transicion solicitada "
+                "no esta permitida."
+            ),
+        )
+
+    try:
+        reporte.estado = datos.estado
+
+        db.commit()
+        db.refresh(reporte)
+
+        return {
+            "id": reporte.id,
+            "codigo": reporte.codigo,
+            "estado": reporte.estado,
+            "mensaje": (
+                "Estado del reporte actualizado "
+                "correctamente."
+            ),
+        }
+
+    except Exception as error:
+        db.rollback()
+
+        print("ERROR AL ACTUALIZAR ESTADO:")
+        print(repr(error))
+
+        raise HTTPException(
+            status_code=(
+                status.HTTP_500_INTERNAL_SERVER_ERROR
+            ),
+            detail=(
+                "No fue posible actualizar "
+                "el estado del reporte."
+            ),
+        ) from error
+
+
+# ============================================================
 # HU5 - Medio de contacto seguro
 # ============================================================
 
@@ -191,7 +288,7 @@ def crear_contacto(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
                 "El medio de contacto no puede "
-                "estar vacío."
+                "estar vacio."
             ),
         )
 
@@ -207,9 +304,9 @@ def crear_contacto(
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=(
-                    "El teléfono solo puede contener "
-                    "dígitos, espacios, guiones o "
-                    "el signo más."
+                    "El telefono solo puede contener "
+                    "digitos, espacios, guiones o "
+                    "el signo mas."
                 ),
             )
 
@@ -217,8 +314,8 @@ def crear_contacto(
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=(
-                    "El teléfono debe tener entre "
-                    "7 y 15 dígitos."
+                    "El telefono debe tener entre "
+                    "7 y 15 digitos."
                 ),
             )
 
@@ -234,8 +331,8 @@ def crear_contacto(
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=(
-                    "El correo electrónico no tiene "
-                    "un formato válido."
+                    "El correo electronico no tiene "
+                    "un formato valido."
                 ),
             )
 
@@ -245,8 +342,9 @@ def crear_contacto(
         reporte_id=reporte_id,
         tipo_contacto=datos.tipo_contacto,
         valor_contacto=valor,
-        mostrar_publicamente=
-            datos.mostrar_publicamente,
+        mostrar_publicamente=(
+            datos.mostrar_publicamente
+        ),
     )
 
     try:
