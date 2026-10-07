@@ -32,5 +32,12 @@ class Reporte(Base):
         cascade="all, delete-orphan",
     )
 
+    # Relación 1 a N con Avistamientos (HU10)
+    avistamientos = relationship(
+        "Avistamiento",
+        back_populates="reporte",
+        cascade="all, delete-orphan",
+    )
+
     def __repr__(self):
         return f"<Reporte id={self.id} codigo={self.codigo} estado={self.estado}>"
