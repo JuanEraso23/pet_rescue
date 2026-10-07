@@ -7,8 +7,13 @@ import '../services/reporte_service.dart';
 
 class DetalleReporteScreen extends StatefulWidget {
   final int reporteId;
+  final bool permitirGestion;
 
-  const DetalleReporteScreen({super.key, required this.reporteId});
+  const DetalleReporteScreen({
+    super.key,
+    required this.reporteId,
+    this.permitirGestion = false,
+  });
 
   @override
   State<DetalleReporteScreen> createState() {
@@ -181,6 +186,13 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
       default:
         return Icons.schedule_outlined;
     }
+  }
+
+  String _formatearFechaCreacion(DateTime fecha) {
+    final dia = fecha.day.toString().padLeft(2, '0');
+    final mes = fecha.month.toString().padLeft(2, '0');
+
+    return '$dia/$mes/${fecha.year}';
   }
 
   Widget _construirAccionesEstado(DetalleReporte reporte) {
@@ -536,7 +548,15 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
                       avatar: Icon(_iconoEstado(reporte.estado), size: 18),
                       backgroundColor: _colorEstado(reporte.estado),
                     ),
-                    Chip(label: Text(reporte.codigo)),
+                    Chip(
+                      avatar: const Icon(
+                        Icons.calendar_today_outlined,
+                        size: 18,
+                      ),
+                      label: Text(
+                        'Publicado: ${_formatearFechaCreacion(reporte.fechaCreacion)}',
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -547,9 +567,18 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
                     color: const Color(0xFF183B4E),
                   ),
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  widget.permitirGestion
+                      ? 'Vista del reporte publicado'
+                      : 'Información pública del reporte',
+                  style: const TextStyle(color: Color(0xFF667781)),
+                ),
                 const SizedBox(height: 20),
-                _construirAccionesEstado(reporte),
-                const SizedBox(height: 16),
+                if (widget.permitirGestion) ...[
+                  _construirAccionesEstado(reporte),
+                  const SizedBox(height: 16),
+                ],
                 _SeccionDetalle(
                   titulo: 'Fotografía reciente',
                   children: [_construirFotografia()],
