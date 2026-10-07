@@ -1,8 +1,19 @@
 # ============================================================
 # Pet Rescue - Modelo SQLAlchemy: Reporte
 # ============================================================
-from sqlalchemy import Column, Integer, String, Text, Date, Time, DateTime, ForeignKey, func
+from sqlalchemy import (
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    Time,
+    func,
+)
 from sqlalchemy.orm import relationship
+
 from app.database.connection import Base
 
 
@@ -29,6 +40,13 @@ class Reporte(Base):
         "ContactoReporte",
         back_populates="reporte",
         uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+    # Relación 1 a N con Avistamientos (HU10)
+    avistamientos = relationship(
+        "Avistamiento",
+        back_populates="reporte",
         cascade="all, delete-orphan",
     )
 
