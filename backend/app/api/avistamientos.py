@@ -15,7 +15,7 @@ from app.schemas.avistamiento import (
 
 
 router = APIRouter(
-    prefix="/reports",
+    prefix="/reportes",
     tags=["Avistamientos"],
 )
 
@@ -49,10 +49,19 @@ def registrar_avistamiento(
     datos: AvistamientoCreate,
     db: Session = Depends(get_db),
 ):
-    obtener_reporte(
+    reporte = obtener_reporte(
         reporte_id=reporte_id,
         db=db,
     )
+
+    if reporte.estado != "Activo":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Solo se pueden registrar avistamientos "
+                "en reportes activos."
+            ),
+        )
 
     avistamiento = Avistamiento(
         reporte_id=reporte_id,

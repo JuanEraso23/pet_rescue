@@ -23,9 +23,16 @@ class AvistamientoCreate(BaseModel):
     fecha_avistamiento: date
     hora_avistamiento: time | None = None
 
-    @field_validator("descripcion", "ubicacion_aproximada")
+    @field_validator(
+        "descripcion",
+        "ubicacion_aproximada",
+        mode="before",
+    )
     @classmethod
     def limpiar_texto(cls, valor: str) -> str:
+        if not isinstance(valor, str):
+            return valor
+
         valor_limpio = valor.strip()
 
         if not valor_limpio:
@@ -34,6 +41,7 @@ class AvistamientoCreate(BaseModel):
             )
 
         return valor_limpio
+
 
     @field_validator("fecha_avistamiento")
     @classmethod
