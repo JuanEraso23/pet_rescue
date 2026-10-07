@@ -71,8 +71,10 @@ class ConfirmacionReporteScreen extends StatelessWidget {
                     onPressed: () {
                       Navigator.of(context).pushReplacement(
                         MaterialPageRoute(
-                          builder: (_) =>
-                              DetalleReporteScreen(reporteId: reporte.id),
+                          builder: (_) => DetalleReporteScreen(
+                            reporteId: reporte.id,
+                            permitirGestion: true,
+                          ),
                         ),
                       );
                     },
