@@ -2,7 +2,7 @@ import re
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database.connection import get_db
 from app.models.contacto_reporte import ContactoReporte
@@ -94,6 +94,74 @@ def crear_reporte(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="No fue posible registrar el reporte.",
         ) from error
+
+
+@router.get("")
+def listar_reportes_activos(
+    db: Session = Depends(get_db),
+):
+    consulta = (
+        select(Reporte)
+        .options(
+            joinedload(Reporte.mascota),
+            selectinload(Reporte.fotografias),
+        )
+        .where(
+            Reporte.estado == "Activo",
+        )
+        .order_by(
+            Reporte.fecha_creacion.desc(),
+            Reporte.id.desc(),
+        )
+    )
+
+    reportes = db.execute(
+        consulta
+    ).scalars().all()
+
+    resultado = []
+
+    for reporte in reportes:
+        fotografias = sorted(
+            reporte.fotografias,
+            key=lambda fotografia: (
+                fotografia.fecha_creacion,
+                fotografia.id,
+            ),
+        )
+
+        fotografia_principal = (
+            fotografias[0]
+            if fotografias
+            else None
+        )
+
+        resultado.append(
+            {
+                "id": reporte.id,
+                "codigo": reporte.codigo,
+                "titulo": reporte.titulo,
+                "estado": reporte.estado,
+                "nombre_mascota": reporte.mascota.nombre,
+                "especie": reporte.mascota.especie,
+                "ubicacion_extravio":
+                    reporte.ubicacion_extravio,
+                "fecha_extravio":
+                    reporte.fecha_extravio,
+                "fecha_creacion":
+                    reporte.fecha_creacion,
+                "fotografia_url": (
+                    (
+                        "/uploads/reportes/"
+                        f"{fotografia_principal.nombre_archivo}"
+                    )
+                    if fotografia_principal
+                    else None
+                ),
+            }
+        )
+
+    return resultado
 
 
 @router.get("/{reporte_id}")
