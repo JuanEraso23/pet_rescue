@@ -30,7 +30,7 @@ class ReporteService {
     } on http.ClientException {
       throw Exception('No fue posible conectarse con el servidor.');
     } on FormatException {
-      throw Exception('El servidor devolvio una respuesta invalida.');
+      throw Exception('El servidor devolvió una respuesta inválida.');
     }
   }
 
@@ -55,14 +55,13 @@ class ReporteService {
         return;
       }
 
-      final cuerpo =
-          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final cuerpo = _decodificarMapa(response);
 
       throw Exception(_obtenerMensajeError(cuerpo));
     } on http.ClientException {
       throw Exception('No fue posible conectarse con el servidor.');
     } on FormatException {
-      throw Exception('El servidor devolvio una respuesta invalida.');
+      throw Exception('El servidor devolvió una respuesta inválida.');
     }
   }
 
@@ -91,7 +90,7 @@ class ReporteService {
           break;
 
         default:
-          throw Exception('Formato de fotografia no permitido.');
+          throw Exception('Formato de fotografía no permitido.');
       }
 
       final request = http.MultipartRequest(
@@ -122,7 +121,7 @@ class ReporteService {
     } on http.ClientException {
       throw Exception('No fue posible conectarse con el servidor.');
     } on FormatException {
-      throw Exception('El servidor devolvio una respuesta invalida.');
+      throw Exception('El servidor devolvió una respuesta inválida.');
     }
   }
 
@@ -153,7 +152,7 @@ class ReporteService {
     } on http.ClientException {
       throw Exception('No fue posible conectarse con el servidor.');
     } on FormatException {
-      throw Exception('El servidor devolvio una respuesta invalida.');
+      throw Exception('El servidor devolvió una respuesta inválida.');
     }
   }
 
@@ -164,8 +163,7 @@ class ReporteService {
       );
 
       if (response.statusCode == 200) {
-        final cuerpo =
-            jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        final cuerpo = _decodificarMapa(response);
 
         return ContactoReporte.fromJson(cuerpo);
       }
@@ -174,26 +172,28 @@ class ReporteService {
         return null;
       }
 
-      final cuerpo =
-          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final cuerpo = _decodificarMapa(response);
 
       throw Exception(_obtenerMensajeError(cuerpo));
     } on http.ClientException {
       throw Exception('No fue posible conectarse con el servidor.');
     } on FormatException {
-      throw Exception('El servidor devolvio una respuesta invalida.');
+      throw Exception('El servidor devolvió una respuesta inválida.');
     }
   }
 
-  Future<List<ResumenReporte>> consultarReportesActivos() async {
+  Future<List<ResumenReporte>> consultarReportes() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/reportes'));
 
       if (response.statusCode == 200) {
-        final cuerpo =
-            jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>;
+        final contenido = jsonDecode(utf8.decode(response.bodyBytes));
 
-        return cuerpo
+        if (contenido is! List) {
+          throw const FormatException();
+        }
+
+        return contenido
             .map(
               (elemento) =>
                   ResumenReporte.fromJson(elemento as Map<String, dynamic>),
@@ -201,14 +201,13 @@ class ReporteService {
             .toList();
       }
 
-      final cuerpo =
-          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final cuerpo = _decodificarMapa(response);
 
       throw Exception(_obtenerMensajeError(cuerpo));
     } on http.ClientException {
       throw Exception('No fue posible conectarse con el servidor.');
     } on FormatException {
-      throw Exception('El servidor devolvio una respuesta invalida.');
+      throw Exception('El servidor devolvió una respuesta inválida.');
     }
   }
 
@@ -228,7 +227,7 @@ class ReporteService {
     } on http.ClientException {
       throw Exception('No fue posible conectarse con el servidor.');
     } on FormatException {
-      throw Exception('El servidor devolvio una respuesta invalida.');
+      throw Exception('El servidor devolvió una respuesta inválida.');
     }
   }
 
@@ -259,7 +258,7 @@ class ReporteService {
     } on http.ClientException {
       throw Exception('No fue posible conectarse con el servidor.');
     } on FormatException {
-      throw Exception('El servidor devolvio una respuesta invalida.');
+      throw Exception('El servidor devolvió una respuesta inválida.');
     }
   }
 
@@ -294,6 +293,6 @@ class ReporteService {
       }
     }
 
-    return 'Ocurrio un error inesperado.';
+    return 'Ocurrió un error inesperado.';
   }
 }
