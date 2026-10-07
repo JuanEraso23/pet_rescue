@@ -1,8 +1,19 @@
 # ============================================================
 # Pet Rescue - Modelo SQLAlchemy: Reporte
 # ============================================================
-from sqlalchemy import Column, Integer, String, Text, Date, Time, DateTime, ForeignKey, func
+from sqlalchemy import (
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    Time,
+    func,
+)
 from sqlalchemy.orm import relationship
+
 from app.database.connection import Base
 
 
