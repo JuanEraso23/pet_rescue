@@ -4,9 +4,10 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
+import '../models/contacto_reporte.dart';
 import '../models/fotografia_reporte.dart';
 import '../models/reporte.dart';
-import '../models/contacto_reporte.dart';
+import '../models/resumen_reporte.dart';
 
 class ReporteService {
   static const String baseUrl = 'http://127.0.0.1:8000';
@@ -171,6 +172,33 @@ class ReporteService {
 
       if (response.statusCode == 404) {
         return null;
+      }
+
+      final cuerpo =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvio una respuesta invalida.');
+    }
+  }
+
+  Future<List<ResumenReporte>> consultarReportesActivos() async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/reportes'));
+
+      if (response.statusCode == 200) {
+        final cuerpo =
+            jsonDecode(utf8.decode(response.bodyBytes)) as List<dynamic>;
+
+        return cuerpo
+            .map(
+              (elemento) =>
+                  ResumenReporte.fromJson(elemento as Map<String, dynamic>),
+            )
+            .toList();
       }
 
       final cuerpo =

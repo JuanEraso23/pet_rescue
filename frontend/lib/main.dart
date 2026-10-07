@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'screens/registro_reporte_screen.dart';
+import 'screens/listado_reportes_screen.dart';
 
 void main() {
   runApp(const PetRescueApp());
@@ -40,7 +40,7 @@ class PetRescueApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const RegistroReporteScreen(),
+      home: const ListadoReportesScreen(),
     );
   }
 }
