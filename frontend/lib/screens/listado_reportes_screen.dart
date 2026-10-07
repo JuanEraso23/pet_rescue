@@ -17,7 +17,12 @@ class ListadoReportesScreen extends StatefulWidget {
 class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
   final ReporteService _service = ReporteService();
 
+  final TextEditingController _busquedaController = TextEditingController();
+
   late Future<List<ResumenReporte>> _reportes;
+
+  String _especieSeleccionada = 'Todas';
+  String _estadoSeleccionado = 'Todos';
 
   @override
   void initState() {
@@ -25,8 +30,14 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     _cargarReportes();
   }
 
+  @override
+  void dispose() {
+    _busquedaController.dispose();
+    super.dispose();
+  }
+
   void _cargarReportes() {
-    _reportes = _service.consultarReportesActivos();
+    _reportes = _service.consultarReportes();
   }
 
   Future<void> _actualizarReportes() async {
@@ -62,6 +73,62 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     await _actualizarReportes();
   }
 
+  List<ResumenReporte> _filtrarReportes(List<ResumenReporte> reportes) {
+    final texto = _busquedaController.text.trim().toLowerCase();
+
+    return reportes.where((reporte) {
+      final codigo = reporte.codigo.toLowerCase();
+      final titulo = reporte.titulo.toLowerCase();
+
+      final nombreMascota = (reporte.nombreMascota ?? '').toLowerCase();
+
+      final ubicacion = reporte.ubicacionExtravio.toLowerCase();
+
+      final coincideTexto =
+          texto.isEmpty ||
+          codigo.contains(texto) ||
+          titulo.contains(texto) ||
+          nombreMascota.contains(texto) ||
+          ubicacion.contains(texto);
+
+      final coincideEspecie =
+          _especieSeleccionada == 'Todas' ||
+          reporte.especie == _especieSeleccionada;
+
+      final coincideEstado =
+          _estadoSeleccionado == 'Todos' ||
+          reporte.estado == _estadoSeleccionado;
+
+      return coincideTexto && coincideEspecie && coincideEstado;
+    }).toList();
+  }
+
+  List<String> _obtenerEspecies(List<ResumenReporte> reportes) {
+    final especies =
+        reportes
+            .map((reporte) => reporte.especie.trim())
+            .where((especie) => especie.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+
+    return ['Todas', ...especies];
+  }
+
+  void _limpiarFiltros() {
+    setState(() {
+      _busquedaController.clear();
+      _especieSeleccionada = 'Todas';
+      _estadoSeleccionado = 'Todos';
+    });
+  }
+
+  bool get _hayFiltros {
+    return _busquedaController.text.trim().isNotEmpty ||
+        _especieSeleccionada != 'Todas' ||
+        _estadoSeleccionado != 'Todos';
+  }
+
   String _formatearFecha(String fecha) {
     final fechaConvertida = DateTime.tryParse(fecha);
 
@@ -70,9 +137,175 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     }
 
     final dia = fechaConvertida.day.toString().padLeft(2, '0');
+
     final mes = fechaConvertida.month.toString().padLeft(2, '0');
 
     return '$dia/$mes/${fechaConvertida.year}';
+  }
+
+  Color _colorEstado(String estado) {
+    switch (estado) {
+      case 'Encontrado':
+        return const Color(0xFFDDF5EF);
+
+      case 'Cerrado':
+        return const Color(0xFFE2E8F0);
+
+      default:
+        return const Color(0xFFFFF1C7);
+    }
+  }
+
+  IconData _iconoEstado(String estado) {
+    switch (estado) {
+      case 'Encontrado':
+        return Icons.check_circle_outline;
+
+      case 'Cerrado':
+        return Icons.lock_outline;
+
+      default:
+        return Icons.schedule_outlined;
+    }
+  }
+
+  Widget _construirFiltros(
+    List<ResumenReporte> reportes,
+    int cantidadResultados,
+  ) {
+    final especies = _obtenerEspecies(reportes);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _busquedaController,
+                onChanged: (_) {
+                  setState(() {});
+                },
+                decoration: InputDecoration(
+                  labelText: 'Buscar reportes',
+                  hintText:
+                      ('Código, título, mascota '
+                      'o ubicación'),
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _busquedaController.text.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: 'Borrar búsqueda',
+                          onPressed: () {
+                            setState(() {
+                              _busquedaController.clear();
+                            });
+                          },
+                          icon: const Icon(Icons.close),
+                        ),
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 220,
+                    child: DropdownButtonFormField<String>(
+                      key: ValueKey(
+                        'especie-'
+                        '$_especieSeleccionada',
+                      ),
+                      initialValue: _especieSeleccionada,
+                      decoration: const InputDecoration(
+                        labelText: 'Especie',
+                        prefixIcon: Icon(Icons.pets),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: especies
+                          .map(
+                            (especie) => DropdownMenuItem<String>(
+                              value: especie,
+                              child: Text(especie),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (valor) {
+                        if (valor == null) {
+                          return;
+                        }
+
+                        setState(() {
+                          _especieSeleccionada = valor;
+                        });
+                      },
+                    ),
+                  ),
+                  SizedBox(
+                    width: 220,
+                    child: DropdownButtonFormField<String>(
+                      key: ValueKey(
+                        'estado-'
+                        '$_estadoSeleccionado',
+                      ),
+                      initialValue: _estadoSeleccionado,
+                      decoration: const InputDecoration(
+                        labelText: 'Estado',
+                        prefixIcon: Icon(Icons.flag_outlined),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'Todos', child: Text('Todos')),
+                        DropdownMenuItem(
+                          value: 'Activo',
+                          child: Text('Activo'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Encontrado',
+                          child: Text('Encontrado'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Cerrado',
+                          child: Text('Cerrado'),
+                        ),
+                      ],
+                      onChanged: (valor) {
+                        if (valor == null) {
+                          return;
+                        }
+
+                        setState(() {
+                          _estadoSeleccionado = valor;
+                        });
+                      },
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _hayFiltros ? _limpiarFiltros : null,
+                    icon: const Icon(Icons.filter_alt_off_outlined),
+                    label: const Text('Limpiar filtros'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '$cantidadResultados '
+                '${cantidadResultados == 1 ? 'resultado' : 'resultados'}',
+                style: const TextStyle(
+                  color: Color(0xFF667781),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _construirImagen(ResumenReporte reporte) {
@@ -137,7 +370,8 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
                   ),
                   SizedBox(height: 10),
                   Text(
-                    'No fue posible mostrar la fotografía.',
+                    'No fue posible mostrar '
+                    'la fotografía.',
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -175,8 +409,8 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
                       ),
                       Chip(
                         label: Text(reporte.estado),
-                        avatar: const Icon(Icons.schedule_outlined, size: 18),
-                        backgroundColor: const Color(0xFFFFF1C7),
+                        avatar: Icon(_iconoEstado(reporte.estado), size: 18),
+                        backgroundColor: _colorEstado(reporte.estado),
                       ),
                       Chip(
                         label: Text(reporte.especie),
@@ -230,43 +464,97 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     );
   }
 
-  Widget _construirLista(List<ResumenReporte> reportes) {
+  Widget _construirSinResultados() {
+    return RefreshIndicator(
+      onRefresh: _actualizarReportes,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        children: [
+          const SizedBox(height: 80),
+          const Icon(
+            Icons.search_off_outlined,
+            size: 80,
+            color: Color(0xFF667781),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'No se encontraron reportes',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF183B4E),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Prueba con otro texto o cambia '
+            'los filtros seleccionados.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFF667781)),
+          ),
+          const SizedBox(height: 24),
+          Center(
+            child: OutlinedButton.icon(
+              onPressed: _limpiarFiltros,
+              icon: const Icon(Icons.filter_alt_off_outlined),
+              label: const Text('Limpiar filtros'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _construirListaVacia() {
+    return RefreshIndicator(
+      onRefresh: _actualizarReportes,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        children: [
+          const SizedBox(height: 100),
+          const Icon(Icons.pets_outlined, size: 80, color: Color(0xFF667781)),
+          const SizedBox(height: 18),
+          Text(
+            'No hay reportes disponibles',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF183B4E),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Cuando se registre una mascota '
+            'extraviada, el reporte aparecerá '
+            'en esta sección.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFF667781)),
+          ),
+          const SizedBox(height: 24),
+          Center(
+            child: FilledButton.icon(
+              onPressed: _abrirRegistro,
+              icon: const Icon(Icons.add),
+              label: const Text('Crear reporte'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _construirLista(
+    List<ResumenReporte> reportes, {
+    required bool hayFiltros,
+  }) {
+    if (reportes.isEmpty && hayFiltros) {
+      return _construirSinResultados();
+    }
+
     if (reportes.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: _actualizarReportes,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(24),
-          children: [
-            const SizedBox(height: 100),
-            const Icon(Icons.pets_outlined, size: 80, color: Color(0xFF667781)),
-            const SizedBox(height: 18),
-            Text(
-              'No hay reportes activos',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF183B4E),
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Cuando se registre una mascota extraviada, '
-              'el reporte aparecerá en esta sección.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF667781)),
-            ),
-            const SizedBox(height: 24),
-            Center(
-              child: FilledButton.icon(
-                onPressed: _abrirRegistro,
-                icon: const Icon(Icons.add),
-                label: const Text('Crear reporte'),
-              ),
-            ),
-          ],
-        ),
-      );
+      return _construirListaVacia();
     }
 
     return RefreshIndicator(
@@ -318,7 +606,7 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mascotas extraviadas'),
+        title: const Text('Reportes de mascotas'),
         actions: [
           IconButton(
             onPressed: _actualizarReportes,
@@ -346,7 +634,19 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
 
           final reportes = snapshot.data ?? <ResumenReporte>[];
 
-          return _construirLista(reportes);
+          final reportesFiltrados = _filtrarReportes(reportes);
+
+          return Column(
+            children: [
+              _construirFiltros(reportes, reportesFiltrados.length),
+              Expanded(
+                child: _construirLista(
+                  reportesFiltrados,
+                  hayFiltros: _hayFiltros,
+                ),
+              ),
+            ],
+          );
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -420,7 +720,8 @@ class _VistaErrorListado extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              'No fue posible cargar los reportes.',
+              'No fue posible cargar '
+              'los reportes.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 18,
