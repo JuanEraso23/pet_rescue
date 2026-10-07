@@ -31,6 +31,7 @@ class DetalleReporte {
   final String descripcion;
   final String tipo;
   final String estado;
+  final DateTime fechaCreacion;
   final String ubicacionExtravio;
   final String fechaExtravio;
   final String? horaExtravio;
@@ -49,6 +50,7 @@ class DetalleReporte {
     required this.descripcion,
     required this.tipo,
     required this.estado,
+    required this.fechaCreacion,
     required this.ubicacionExtravio,
     required this.fechaExtravio,
     required this.horaExtravio,
@@ -71,6 +73,7 @@ class DetalleReporte {
       descripcion: json['descripcion'] as String,
       tipo: json['tipo'] as String,
       estado: json['estado'] as String,
+      fechaCreacion: DateTime.parse(json['fecha_creacion'] as String),
       ubicacionExtravio: json['ubicacion_extravio'] as String,
       fechaExtravio: json['fecha_extravio'] as String,
       horaExtravio: json['hora_extravio'] as String?,
