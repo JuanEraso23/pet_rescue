@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
+import '../models/avistamiento.dart';
 import '../models/contacto_reporte.dart';
 import '../models/fotografia_reporte.dart';
 import '../models/reporte.dart';
 import '../services/reporte_service.dart';
+import 'registro_avistamiento_screen.dart';
 
 class DetalleReporteScreen extends StatefulWidget {
   final int reporteId;
@@ -27,6 +30,7 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
   late Future<DetalleReporte> _reporte;
   late Future<List<FotografiaReporte>> _fotografias;
   late Future<ContactoReporte?> _contacto;
+  late Future<List<Avistamiento>> _avistamientos;
 
   bool _actualizandoEstado = false;
 
@@ -42,6 +46,8 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
     _fotografias = _service.consultarFotografias(widget.reporteId);
 
     _contacto = _service.consultarContacto(widget.reporteId);
+
+    _avistamientos = _service.consultarAvistamientos(widget.reporteId);
   }
 
   void _reintentar() {
@@ -55,7 +61,39 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
       _cargarInformacion();
     });
 
-    await Future.wait([_reporte, _fotografias, _contacto]);
+    await Future.wait([_reporte, _fotografias, _contacto, _avistamientos]);
+  }
+
+  Future<void> _abrirRegistroAvistamiento(DetalleReporte reporte) async {
+    if (reporte.estado != 'Activo') {
+      _mostrarMensaje(
+        'Solo se pueden registrar avistamientos '
+        'en reportes activos.',
+        esError: true,
+      );
+      return;
+    }
+
+    final registrado = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => RegistroAvistamientoScreen(reporteId: reporte.id),
+      ),
+    );
+
+    if (registrado != true || !mounted) {
+      return;
+    }
+
+    await _refrescarInformacion();
+
+    if (!mounted) {
+      return;
+    }
+
+    _mostrarMensaje(
+      'El listado de avistamientos fue actualizado.',
+      esError: false,
+    );
   }
 
   Future<void> _solicitarCambioEstado({
@@ -193,6 +231,269 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
     final mes = fecha.month.toString().padLeft(2, '0');
 
     return '$dia/$mes/${fecha.year}';
+  }
+
+  String _formatearFechaAvistamiento(String fecha) {
+    final fechaConvertida = DateTime.tryParse(fecha);
+
+    if (fechaConvertida == null) {
+      return fecha;
+    }
+
+    final dia = fechaConvertida.day.toString().padLeft(2, '0');
+    final mes = fechaConvertida.month.toString().padLeft(2, '0');
+
+    return '$dia/$mes/${fechaConvertida.year}';
+  }
+
+  String _construirMensajeCompartir(DetalleReporte reporte) {
+    final nombreMascota = reporte.nombreMascota?.trim().isNotEmpty == true
+        ? reporte.nombreMascota!
+        : 'No registrado';
+
+    final raza = reporte.raza?.trim().isNotEmpty == true
+        ? reporte.raza!
+        : 'No registrada';
+
+    final senas = reporte.senasParticulares?.trim().isNotEmpty == true
+        ? reporte.senasParticulares!
+        : 'No registradas';
+
+    return '''
+Pet Rescue - Reporte de mascota
+
+Código: ${reporte.codigo}
+Título: ${reporte.titulo}
+Nombre: $nombreMascota
+Especie: ${reporte.especie}
+Raza: $raza
+Color: ${reporte.color}
+Tamaño: ${reporte.tamano}
+Señas particulares: $senas
+
+Ubicación aproximada: ${reporte.ubicacionExtravio}
+Fecha del extravío: ${_formatearFechaAvistamiento(reporte.fechaExtravio)}
+Estado: ${reporte.estado}
+
+${reporte.descripcion}
+
+Si tienes información, consulta este reporte en Pet Rescue.
+''';
+  }
+
+  Future<void> _compartirReporte(
+    BuildContext botonContext,
+    DetalleReporte reporte,
+  ) async {
+    final mensaje = _construirMensajeCompartir(reporte);
+
+    try {
+      final caja = botonContext.findRenderObject();
+
+      final origen = caja is RenderBox
+          ? caja.localToGlobal(Offset.zero) & caja.size
+          : null;
+
+      final resultado = await SharePlus.instance.share(
+        ShareParams(
+          text: mensaje,
+          title: 'Pet Rescue - ${reporte.codigo}',
+          subject: 'Reporte de mascota ${reporte.codigo}',
+          sharePositionOrigin: origen,
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (resultado.status == ShareResultStatus.success) {
+        _mostrarMensaje('Reporte compartido correctamente.', esError: false);
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      _mostrarMensaje(
+        'No fue posible abrir las opciones para compartir.',
+        esError: true,
+      );
+    }
+  }
+
+  String _formatearHoraAvistamiento(String? hora) {
+    if (hora == null || hora.isEmpty) {
+      return 'No registrada';
+    }
+
+    final partes = hora.split(':');
+
+    if (partes.length < 2) {
+      return hora;
+    }
+
+    return '${partes[0]}:${partes[1]}';
+  }
+
+  Widget _construirTarjetaAvistamiento(Avistamiento avistamiento) {
+    return Card(
+      color: const Color(0xFFF7FAFC),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const CircleAvatar(
+                  backgroundColor: Color(0xFFE8F3F8),
+                  child: Icon(
+                    Icons.visibility_outlined,
+                    color: Color(0xFF007C83),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    avistamiento.descripcion,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF183B4E),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _FilaDato(
+              etiqueta: 'Ubicación',
+              valor: avistamiento.ubicacionAproximada,
+            ),
+            _FilaDato(
+              etiqueta: 'Fecha',
+              valor: _formatearFechaAvistamiento(
+                avistamiento.fechaAvistamiento,
+              ),
+            ),
+            _FilaDato(
+              etiqueta: 'Hora',
+              valor: _formatearHoraAvistamiento(avistamiento.horaAvistamiento),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _construirAvistamientos(DetalleReporte reporte) {
+    return FutureBuilder<List<Avistamiento>>(
+      future: _avistamientos,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(18),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Column(
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 44,
+                color: Colors.redAccent,
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'No fue posible consultar los avistamientos.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _reintentar,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar'),
+              ),
+            ],
+          );
+        }
+
+        final avistamientos = snapshot.data ?? <Avistamiento>[];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (reporte.estado == 'Activo') ...[
+              const Text(
+                'Si viste una mascota con estas '
+                'características, puedes registrar '
+                'la ubicación y fecha aproximadas.',
+              ),
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                onPressed: () {
+                  _abrirRegistroAvistamiento(reporte);
+                },
+                icon: const Icon(Icons.add_location_alt_outlined),
+                label: const Text('Registrar avistamiento'),
+              ),
+              const SizedBox(height: 18),
+            ],
+            if (avistamientos.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 18),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.visibility_off_outlined,
+                        size: 50,
+                        color: Color(0xFF667781),
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        'No hay avistamientos registrados',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF183B4E),
+                        ),
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        'Los nuevos avistamientos '
+                        'aparecerán en esta sección.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else ...[
+              Text(
+                '${avistamientos.length} '
+                '${avistamientos.length == 1 ? 'avistamiento' : 'avistamientos'}',
+                style: const TextStyle(
+                  color: Color(0xFF667781),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              for (var indice = 0; indice < avistamientos.length; indice++) ...[
+                _construirTarjetaAvistamiento(avistamientos[indice]),
+                if (indice < avistamientos.length - 1)
+                  const SizedBox(height: 12),
+              ],
+            ],
+          ],
+        );
+      },
+    );
   }
 
   Widget _construirAccionesEstado(DetalleReporte reporte) {
@@ -560,12 +861,35 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                Text(
-                  reporte.titulo,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF183B4E),
-                  ),
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 16,
+                  runSpacing: 12,
+                  children: [
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 650),
+                      child: Text(
+                        reporte.titulo,
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF183B4E),
+                            ),
+                      ),
+                    ),
+                    Builder(
+                      builder: (botonContext) {
+                        return OutlinedButton.icon(
+                          onPressed: () {
+                            _compartirReporte(botonContext, reporte);
+                          },
+                          icon: const Icon(Icons.share_outlined),
+                          label: const Text('Compartir reporte'),
+                        );
+                      },
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -629,6 +953,11 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
                       valor: reporte.horaExtravio ?? 'No registrada',
                     ),
                   ],
+                ),
+                const SizedBox(height: 16),
+                _SeccionDetalle(
+                  titulo: 'Avistamientos recientes',
+                  children: [_construirAvistamientos(reporte)],
                 ),
                 const SizedBox(height: 16),
                 _SeccionDetalle(

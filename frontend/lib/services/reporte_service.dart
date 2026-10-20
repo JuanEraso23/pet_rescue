@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
+import '../models/avistamiento.dart';
 import '../models/contacto_reporte.dart';
 import '../models/fotografia_reporte.dart';
 import '../models/reporte.dart';
@@ -253,6 +254,72 @@ class ReporteService {
 
         return 'Estado actualizado correctamente.';
       }
+
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvió una respuesta inválida.');
+    }
+  }
+
+  Future<Avistamiento> registrarAvistamiento({
+    required int reporteId,
+    required String descripcion,
+    required String ubicacionAproximada,
+    required String fechaAvistamiento,
+    String? horaAvistamiento,
+  }) async {
+    try {
+      final datos = <String, dynamic>{
+        'descripcion': descripcion.trim(),
+        'ubicacion_aproximada': ubicacionAproximada.trim(),
+        'fecha_avistamiento': fechaAvistamiento,
+        'hora_avistamiento': horaAvistamiento,
+      };
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/reportes/$reporteId/avistamientos'),
+        headers: const {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode(datos),
+      );
+
+      final cuerpo = _decodificarMapa(response);
+
+      if (response.statusCode == 201) {
+        return Avistamiento.fromJson(cuerpo);
+      }
+
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvió una respuesta inválida.');
+    }
+  }
+
+  Future<List<Avistamiento>> consultarAvistamientos(int reporteId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/reportes/$reporteId/avistamientos'),
+      );
+
+      if (response.statusCode == 200) {
+        final contenido = jsonDecode(utf8.decode(response.bodyBytes));
+
+        if (contenido is! List) {
+          throw const FormatException();
+        }
+
+        return contenido
+            .map(
+              (elemento) =>
+                  Avistamiento.fromJson(elemento as Map<String, dynamic>),
+            )
+            .toList();
+      }
+
+      final cuerpo = _decodificarMapa(response);
 
       throw Exception(_obtenerMensajeError(cuerpo));
     } on http.ClientException {
