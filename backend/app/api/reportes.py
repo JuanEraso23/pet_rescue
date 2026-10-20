@@ -115,15 +115,6 @@ def listar_reportes(
     ubicacion: str | None = None,
     fecha_desde: date | None = None,
     fecha_hasta: date | None = None,
-    raza: str | None = None,
-    color: str | None = None,
-    tamano: Literal[
-        "Pequeño",
-        "Mediano",
-        "Grande",
-    ] | None = None,
-    edad_maxima: int | None = None,
-    senas: str | None = None,
     db: Session = Depends(get_db),
 ):
     if (
@@ -139,65 +130,17 @@ def listar_reportes(
             ),
         )
 
-    if edad_maxima is not None and edad_maxima < 0:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                "La edad máxima no puede ser negativa."
-            ),
-        )
-
     consulta = select(Reporte).options(
         joinedload(Reporte.mascota),
         selectinload(Reporte.fotografias),
     )
 
-    filtros_mascota = []
-
     if especie is not None and especie.strip():
-        filtros_mascota.append(
-            Mascota.especie.ilike(
-                especie.strip(),
-            )
-        )
-
-    if raza is not None and raza.strip():
-        filtros_mascota.append(
-            Mascota.raza.ilike(
-                f"%{raza.strip()}%",
-            )
-        )
-
-    if color is not None and color.strip():
-        filtros_mascota.append(
-            Mascota.color.ilike(
-                f"%{color.strip()}%",
-            )
-        )
-
-    if tamano is not None and tamano.strip():
-        filtros_mascota.append(
-            Mascota.tamano.ilike(
-                tamano.strip(),
-            )
-        )
-
-    if edad_maxima is not None:
-        filtros_mascota.append(
-            Mascota.edad_aproximada <= edad_maxima,
-        )
-
-    if senas is not None and senas.strip():
-        filtros_mascota.append(
-            Mascota.senas_particulares.ilike(
-                f"%{senas.strip()}%",
-            )
-        )
-
-    for filtro_mascota in filtros_mascota:
         consulta = consulta.where(
             Reporte.mascota.has(
-                filtro_mascota,
+                Mascota.especie.ilike(
+                    especie.strip(),
+                )
             )
         )
 
@@ -250,19 +193,8 @@ def listar_reportes(
                 "codigo": reporte.codigo,
                 "titulo": reporte.titulo,
                 "estado": reporte.estado,
-                "nombre_mascota": (
-                    reporte.mascota.nombre
-                ),
+                "nombre_mascota": reporte.mascota.nombre,
                 "especie": reporte.mascota.especie,
-                "raza": reporte.mascota.raza,
-                "color": reporte.mascota.color,
-                "tamano": reporte.mascota.tamano,
-                "edad_aproximada": (
-                    reporte.mascota.edad_aproximada
-                ),
-                "senas_particulares": (
-                    reporte.mascota.senas_particulares
-                ),
                 "ubicacion_extravio": (
                     reporte.ubicacion_extravio
                 ),
