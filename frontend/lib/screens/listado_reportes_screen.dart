@@ -73,6 +73,34 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     await _actualizarReportes();
   }
 
+  Future<void> _abrirGestion(ResumenReporte reporte) async {
+    if (reporte.estado != 'Activo') {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Solo se pueden gestionar reportes activos.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            DetalleReporteScreen(reporteId: reporte.id, permitirGestion: true),
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    await _actualizarReportes();
+  }
+
   List<ResumenReporte> _filtrarReportes(List<ResumenReporte> reportes) {
     final texto = _busquedaController.text.trim().toLowerCase();
 
@@ -445,15 +473,27 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
                     valor: _formatearFecha(reporte.fechaExtravio),
                   ),
                   const SizedBox(height: 14),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: FilledButton.tonalIcon(
-                      onPressed: () {
-                        _abrirDetalle(reporte);
-                      },
-                      icon: const Icon(Icons.visibility_outlined),
-                      label: const Text('Ver detalle'),
-                    ),
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      FilledButton.tonalIcon(
+                        onPressed: () {
+                          _abrirDetalle(reporte);
+                        },
+                        icon: const Icon(Icons.visibility_outlined),
+                        label: const Text('Ver detalle'),
+                      ),
+                      if (reporte.estado == 'Activo')
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            _abrirGestion(reporte);
+                          },
+                          icon: const Icon(Icons.settings_outlined),
+                          label: const Text('Gestionar reporte'),
+                        ),
+                    ],
                   ),
                 ],
               ),

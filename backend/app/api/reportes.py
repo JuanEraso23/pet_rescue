@@ -17,7 +17,7 @@ from app.schemas.estado_reporte import (
     EstadoReporteOut,
     EstadoReporteUpdate,
 )
-from app.schemas.reporte import ReporteCreate
+from app.schemas.reporte import ReporteCreate, ReporteUpdate
 
 
 router = APIRouter(
@@ -312,3 +312,196 @@ def actualizar_estado_reporte(
                 "No fue posible actualizar "
             )
         )
+
+
+# ============================================================
+# HU5 - Medio de contacto seguro
+# ============================================================
+@router.post(
+    "/{reporte_id}/contacto",
+    status_code=status.HTTP_201_CREATED,
+)
+def crear_contacto(
+    reporte_id: int,
+    datos: ContactoCreate,
+    db: Session = Depends(get_db),
+):
+    reporte = db.get(Reporte, reporte_id)
+    if reporte is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reporte no encontrado.",
+        )
+
+    existente = db.execute(
+        select(ContactoReporte).where(
+            ContactoReporte.reporte_id == reporte_id
+        )
+    ).scalar_one_or_none()
+
+    if existente is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Este reporte ya tiene un contacto registrado.",
+        )
+
+    valor = datos.valor_contacto
+
+    if datos.tipo_contacto == "Telefono":
+        valor_limpio = valor.replace(" ", "").replace("-", "").replace("+", "")
+        if not valor_limpio.isdigit():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="El telefono solo puede contener digitos.",
+            )
+        if not (7 <= len(valor_limpio) <= 15):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="El telefono debe tener entre 7 y 15 digitos.",
+            )
+    elif datos.tipo_contacto == "Correo":
+        patron = r"^[\w\.\-]+@[\w\.\-]+\.\w+$"
+        if not re.match(patron, valor):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="El correo electronico no tiene un formato valido.",
+            )
+
+    contacto = ContactoReporte(
+        reporte_id=reporte_id,
+        tipo_contacto=datos.tipo_contacto,
+        valor_contacto=valor,
+        mostrar_publicamente=datos.mostrar_publicamente,
+    )
+
+    try:
+        db.add(contacto)
+        db.commit()
+        db.refresh(contacto)
+        return {
+            "id": contacto.id,
+            "reporte_id": contacto.reporte_id,
+            "tipo_contacto": contacto.tipo_contacto,
+            "valor_contacto": contacto.valor_contacto,
+            "mostrar_publicamente": contacto.mostrar_publicamente,
+            "fecha_creacion": contacto.fecha_creacion,
+        }
+    except Exception as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="No fue posible guardar el contacto.",
+        ) from error
+
+
+@router.get("/{reporte_id}/contacto")
+def consultar_contacto(
+    reporte_id: int,
+    db: Session = Depends(get_db),
+):
+    reporte = db.get(Reporte, reporte_id)
+    if reporte is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reporte no encontrado.",
+        )
+
+    contacto = db.execute(
+        select(ContactoReporte).where(
+            ContactoReporte.reporte_id == reporte_id
+        )
+    ).scalar_one_or_none()
+
+    if contacto is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Este reporte no tiene contacto registrado.",
+        )
+
+    if contacto.mostrar_publicamente:
+        valor_mostrado = contacto.valor_contacto
+    else:
+        valor_mostrado = "Contacto privado"
+
+    return {
+        "tipo_contacto": contacto.tipo_contacto,
+        "valor_contacto": valor_mostrado,
+        "mostrar_publicamente": contacto.mostrar_publicamente,
+    }
+
+
+# ============================================================
+# HU12 - Actualizar reporte
+# ============================================================
+@router.patch("/{reporte_id}")
+def actualizar_reporte(
+    reporte_id: int,
+    datos: ReporteUpdate,
+    db: Session = Depends(get_db),
+):
+    reporte = db.execute(
+        select(Reporte)
+        .options(joinedload(Reporte.mascota))
+        .where(Reporte.id == reporte_id)
+    ).scalar_one_or_none()
+
+    if reporte is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reporte no encontrado.",
+        )
+
+    if reporte.estado != "Activo":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Solo se puede actualizar la información "
+                "de reportes activos."
+            ),
+        )
+
+    campos_reporte = {
+        "titulo",
+        "descripcion",
+        "ubicacion_extravio",
+        "fecha_extravio",
+        "hora_extravio",
+    }
+
+    campos_mascota = {
+        "nombre_mascota",
+        "especie",
+        "raza",
+        "color",
+        "tamano",
+        "edad_aproximada",
+        "senas_particulares",
+    }
+
+    cambios = datos.model_dump(exclude_unset=True)
+
+    try:
+        for campo, valor in cambios.items():
+            if campo in campos_reporte:
+                setattr(reporte, campo, valor)
+            elif campo in campos_mascota:
+                atributo = "nombre" if campo == "nombre_mascota" else campo
+                setattr(reporte.mascota, atributo, valor)
+
+        db.commit()
+        db.refresh(reporte)
+
+        return {
+            "id": reporte.id,
+            "codigo": reporte.codigo,
+            "mensaje": "Reporte actualizado correctamente.",
+        }
+
+    except Exception as error:
+        db.rollback()
+        print("ERROR AL ACTUALIZAR REPORTE:")
+        print(repr(error))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="No fue posible actualizar el reporte.",
+        ) from error
