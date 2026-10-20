@@ -451,6 +451,15 @@ def actualizar_reporte(
             detail="Reporte no encontrado.",
         )
 
+    if reporte.estado != "Activo":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Solo se puede actualizar la información "
+                "de reportes activos."
+            ),
+        )
+
     campos_reporte = {
         "titulo",
         "descripcion",

@@ -44,18 +44,60 @@ class ReporteOut(BaseModel):
 
 
 class ReporteUpdate(BaseModel):
-    titulo: str | None = Field(default=None, min_length=5, max_length=200)
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+
+    titulo: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=200,
+    )
     descripcion: str | None = Field(default=None, min_length=10)
     nombre_mascota: str | None = Field(default=None, max_length=100)
-    especie: str | None = Field(default=None, max_length=50)
+    especie: Literal[
+        "Perro",
+        "Gato",
+        "Ave",
+        "Roedor",
+        "Otro",
+    ] | None = None
     raza: str | None = Field(default=None, max_length=100)
-    color: str | None = Field(default=None, max_length=50)
-    tamano: str | None = Field(default=None, max_length=20)
+    color: str | None = Field(
+        default=None,
+        min_length=2,
+        max_length=50,
+    )
+    tamano: Literal[
+        "Pequeño",
+        "Mediano",
+        "Grande",
+    ] | None = None
     edad_aproximada: int | None = Field(default=None, ge=0)
     senas_particulares: str | None = None
     ubicacion_extravio: str | None = Field(default=None, min_length=3, max_length=200)
     fecha_extravio: date | None = None
     hora_extravio: time | None = None
+
+    @field_validator(
+        "titulo",
+        "descripcion",
+        "especie",
+        "color",
+        "tamano",
+        "ubicacion_extravio",
+        "fecha_extravio",
+        mode="before",
+    )
+    @classmethod
+    def validar_campos_obligatorios(
+        cls,
+        valor,
+    ):
+        if valor is None:
+            raise ValueError("El campo no puede ser nulo.")
+
+        return valor
 
     @field_validator("titulo", "descripcion", "ubicacion_extravio", mode="before")
     @classmethod
@@ -72,7 +114,7 @@ class ReporteUpdate(BaseModel):
         return valor
 
     @model_validator(mode="after")
-    def validator_al_menos_un_cambio(self):
+    def validar_al_menos_un_cambio(self):
         if not self.model_fields_set:
             raise ValueError("Debes enviar al menos un campo para actualizar.")
         return self
