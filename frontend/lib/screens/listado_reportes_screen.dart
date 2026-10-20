@@ -382,6 +382,11 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
                         DropdownMenuItem(value: 'Todas', child: Text('Todas')),
                         DropdownMenuItem(value: 'Perro', child: Text('Perro')),
                         DropdownMenuItem(value: 'Gato', child: Text('Gato')),
+                        DropdownMenuItem(value: 'Ave', child: Text('Ave')),
+                        DropdownMenuItem(
+                          value: 'Roedor',
+                          child: Text('Roedor'),
+                        ),
                         DropdownMenuItem(value: 'Otro', child: Text('Otro')),
                       ],
                       onChanged: _aplicandoFiltros
