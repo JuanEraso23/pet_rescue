@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -104,7 +105,13 @@ def crear_reporte(
 
 @router.get("")
 def listar_reportes(
-    especie: str | None = None,
+    especie: Literal[
+        "Perro",
+        "Gato",
+        "Ave",
+        "Roedor",
+        "Otro",
+    ] | None = None,
     ubicacion: str | None = None,
     fecha_desde: date | None = None,
     fecha_hasta: date | None = None,
