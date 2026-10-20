@@ -218,9 +218,50 @@ class ReporteService {
     }
   }
 
-  Future<List<ResumenReporte>> consultarReportes() async {
+  Future<List<ResumenReporte>> consultarReportes({
+    String? especie,
+    String? ubicacion,
+    DateTime? fechaDesde,
+    DateTime? fechaHasta,
+  }) async {
+    if (fechaDesde != null &&
+        fechaHasta != null &&
+        fechaDesde.isAfter(fechaHasta)) {
+      throw Exception(
+        'La fecha inicial no puede ser posterior '
+        'a la fecha final.',
+      );
+    }
+
     try {
-      final response = await http.get(Uri.parse('$baseUrl/reportes'));
+      final parametros = <String, String>{};
+
+      final especieLimpia = especie?.trim();
+
+      if (especieLimpia != null &&
+          especieLimpia.isNotEmpty &&
+          especieLimpia != 'Todas') {
+        parametros['especie'] = especieLimpia;
+      }
+
+      final ubicacionLimpia = ubicacion?.trim();
+
+      if (ubicacionLimpia != null && ubicacionLimpia.isNotEmpty) {
+        parametros['ubicacion'] = ubicacionLimpia;
+      }
+
+      if (fechaDesde != null) {
+        parametros['fecha_desde'] = _formatearFechaApi(fechaDesde);
+      }
+
+      if (fechaHasta != null) {
+        parametros['fecha_hasta'] = _formatearFechaApi(fechaHasta);
+      }
+
+      final uri = Uri.parse('$baseUrl/reportes')
+          .replace(queryParameters: parametros.isEmpty ? null : parametros);
+
+      final response = await http.get(uri);
 
       if (response.statusCode == 200) {
         final contenido = jsonDecode(utf8.decode(response.bodyBytes));
@@ -314,7 +355,10 @@ class ReporteService {
       };
 
       final response = await http.post(
-        Uri.parse('$baseUrl/reportes/$reporteId/avistamientos'),
+        Uri.parse(
+          '$baseUrl/reportes/'
+          '$reporteId/avistamientos',
+        ),
         headers: const {'Content-Type': 'application/json; charset=UTF-8'},
         body: jsonEncode(datos),
       );
@@ -336,7 +380,10 @@ class ReporteService {
   Future<List<Avistamiento>> consultarAvistamientos(int reporteId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/reportes/$reporteId/avistamientos'),
+        Uri.parse(
+          '$baseUrl/reportes/'
+          '$reporteId/avistamientos',
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -362,6 +409,16 @@ class ReporteService {
     } on FormatException {
       throw Exception('El servidor devolvió una respuesta inválida.');
     }
+  }
+
+  String _formatearFechaApi(DateTime fecha) {
+    final anio = fecha.year.toString();
+
+    final mes = fecha.month.toString().padLeft(2, '0');
+
+    final dia = fecha.day.toString().padLeft(2, '0');
+
+    return '$anio-$mes-$dia';
   }
 
   Map<String, dynamic> _decodificarMapa(http.Response response) {

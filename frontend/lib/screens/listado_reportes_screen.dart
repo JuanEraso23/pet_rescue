@@ -19,10 +19,17 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
 
   final TextEditingController _busquedaController = TextEditingController();
 
+  final TextEditingController _ubicacionController = TextEditingController();
+
   late Future<List<ResumenReporte>> _reportes;
 
   String _especieSeleccionada = 'Todas';
   String _estadoSeleccionado = 'Todos';
+
+  DateTime? _fechaDesde;
+  DateTime? _fechaHasta;
+
+  bool _aplicandoFiltros = false;
 
   @override
   void initState() {
@@ -33,11 +40,17 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
   @override
   void dispose() {
     _busquedaController.dispose();
+    _ubicacionController.dispose();
     super.dispose();
   }
 
   void _cargarReportes() {
-    _reportes = _service.consultarReportes();
+    _reportes = _service.consultarReportes(
+      especie: _especieSeleccionada,
+      ubicacion: _ubicacionController.text,
+      fechaDesde: _fechaDesde,
+      fechaHasta: _fechaHasta,
+    );
   }
 
   Future<void> _actualizarReportes() async {
@@ -46,6 +59,63 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     });
 
     await _reportes;
+  }
+
+  Future<void> _aplicarFiltros() async {
+    if (_fechaDesde != null &&
+        _fechaHasta != null &&
+        _fechaDesde!.isAfter(_fechaHasta!)) {
+      _mostrarMensaje(
+        'La fecha inicial no puede ser posterior '
+        'a la fecha final.',
+        esError: true,
+      );
+
+      return;
+    }
+
+    setState(() {
+      _aplicandoFiltros = true;
+      _cargarReportes();
+    });
+
+    try {
+      await _reportes;
+    } catch (_) {
+      // El FutureBuilder muestra el error correspondiente.
+    } finally {
+      if (mounted) {
+        setState(() {
+          _aplicandoFiltros = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _limpiarFiltros() async {
+    _busquedaController.clear();
+    _ubicacionController.clear();
+
+    setState(() {
+      _especieSeleccionada = 'Todas';
+      _estadoSeleccionado = 'Todos';
+      _fechaDesde = null;
+      _fechaHasta = null;
+      _aplicandoFiltros = true;
+      _cargarReportes();
+    });
+
+    try {
+      await _reportes;
+    } catch (_) {
+      // El FutureBuilder muestra el error correspondiente.
+    } finally {
+      if (mounted) {
+        setState(() {
+          _aplicandoFiltros = false;
+        });
+      }
+    }
   }
 
   Future<void> _abrirRegistro() async {
@@ -75,14 +145,10 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
 
   Future<void> _abrirGestion(ResumenReporte reporte) async {
     if (reporte.estado != 'Activo') {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            content: Text('Solo se pueden gestionar reportes activos.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+      _mostrarMensaje(
+        'Solo se pueden gestionar reportes activos.',
+        esError: true,
+      );
 
       return;
     }
@@ -101,60 +167,83 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     await _actualizarReportes();
   }
 
-  List<ResumenReporte> _filtrarReportes(List<ResumenReporte> reportes) {
+  Future<void> _seleccionarFechaDesde() async {
+    final fecha = await showDatePicker(
+      context: context,
+      initialDate: _fechaDesde ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      helpText: 'Seleccionar fecha inicial',
+      cancelText: 'Cancelar',
+      confirmText: 'Aceptar',
+    );
+
+    if (fecha == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _fechaDesde = fecha;
+    });
+  }
+
+  Future<void> _seleccionarFechaHasta() async {
+    final fecha = await showDatePicker(
+      context: context,
+      initialDate: _fechaHasta ?? _fechaDesde ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      helpText: 'Seleccionar fecha final',
+      cancelText: 'Cancelar',
+      confirmText: 'Aceptar',
+    );
+
+    if (fecha == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _fechaHasta = fecha;
+    });
+  }
+
+  void _mostrarMensaje(String mensaje, {required bool esError}) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(mensaje),
+          backgroundColor: esError ? Colors.redAccent : const Color(0xFF007C83),
+        ),
+      );
+  }
+
+  List<ResumenReporte> _filtrarLocalmente(List<ResumenReporte> reportes) {
     final texto = _busquedaController.text.trim().toLowerCase();
 
     return reportes.where((reporte) {
-      final codigo = reporte.codigo.toLowerCase();
-      final titulo = reporte.titulo.toLowerCase();
-
-      final nombreMascota = (reporte.nombreMascota ?? '').toLowerCase();
-
-      final ubicacion = reporte.ubicacionExtravio.toLowerCase();
-
       final coincideTexto =
           texto.isEmpty ||
-          codigo.contains(texto) ||
-          titulo.contains(texto) ||
-          nombreMascota.contains(texto) ||
-          ubicacion.contains(texto);
-
-      final coincideEspecie =
-          _especieSeleccionada == 'Todas' ||
-          reporte.especie == _especieSeleccionada;
+          reporte.codigo.toLowerCase().contains(texto) ||
+          reporte.titulo.toLowerCase().contains(texto) ||
+          (reporte.nombreMascota ?? '').toLowerCase().contains(texto) ||
+          reporte.ubicacionExtravio.toLowerCase().contains(texto);
 
       final coincideEstado =
           _estadoSeleccionado == 'Todos' ||
           reporte.estado == _estadoSeleccionado;
 
-      return coincideTexto && coincideEspecie && coincideEstado;
+      return coincideTexto && coincideEstado;
     }).toList();
-  }
-
-  List<String> _obtenerEspecies(List<ResumenReporte> reportes) {
-    final especies =
-        reportes
-            .map((reporte) => reporte.especie.trim())
-            .where((especie) => especie.isNotEmpty)
-            .toSet()
-            .toList()
-          ..sort();
-
-    return ['Todas', ...especies];
-  }
-
-  void _limpiarFiltros() {
-    setState(() {
-      _busquedaController.clear();
-      _especieSeleccionada = 'Todas';
-      _estadoSeleccionado = 'Todos';
-    });
   }
 
   bool get _hayFiltros {
     return _busquedaController.text.trim().isNotEmpty ||
+        _ubicacionController.text.trim().isNotEmpty ||
         _especieSeleccionada != 'Todas' ||
-        _estadoSeleccionado != 'Todos';
+        _estadoSeleccionado != 'Todos' ||
+        _fechaDesde != null ||
+        _fechaHasta != null;
   }
 
   String _formatearFecha(String fecha) {
@@ -164,11 +253,14 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
       return fecha;
     }
 
-    final dia = fechaConvertida.day.toString().padLeft(2, '0');
+    return _formatearDateTime(fechaConvertida);
+  }
 
-    final mes = fechaConvertida.month.toString().padLeft(2, '0');
+  String _formatearDateTime(DateTime fecha) {
+    final dia = fecha.day.toString().padLeft(2, '0');
+    final mes = fecha.month.toString().padLeft(2, '0');
 
-    return '$dia/$mes/${fechaConvertida.year}';
+    return '$dia/$mes/${fecha.year}';
   }
 
   Color _colorEstado(String estado) {
@@ -197,12 +289,43 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     }
   }
 
-  Widget _construirFiltros(
-    List<ResumenReporte> reportes,
-    int cantidadResultados,
-  ) {
-    final especies = _obtenerEspecies(reportes);
+  Widget _construirSelectorFecha({
+    required String etiqueta,
+    required DateTime? fecha,
+    required VoidCallback onSeleccionar,
+    required VoidCallback onLimpiar,
+  }) {
+    return SizedBox(
+      width: 220,
+      child: OutlinedButton(
+        onPressed: _aplicandoFiltros ? null : onSeleccionar,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 17),
+          alignment: Alignment.centerLeft,
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.calendar_month_outlined),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                fecha == null ? etiqueta : _formatearDateTime(fecha),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (fecha != null)
+              IconButton(
+                tooltip: 'Limpiar $etiqueta',
+                onPressed: _aplicandoFiltros ? null : onLimpiar,
+                icon: const Icon(Icons.close, size: 18),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
+  Widget _construirFiltros(int cantidadResultados) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Card(
@@ -255,23 +378,36 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
                         prefixIcon: Icon(Icons.pets),
                         border: OutlineInputBorder(),
                       ),
-                      items: especies
-                          .map(
-                            (especie) => DropdownMenuItem<String>(
-                              value: especie,
-                              child: Text(especie),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (valor) {
-                        if (valor == null) {
-                          return;
-                        }
+                      items: const [
+                        DropdownMenuItem(value: 'Todas', child: Text('Todas')),
+                        DropdownMenuItem(value: 'Perro', child: Text('Perro')),
+                        DropdownMenuItem(value: 'Gato', child: Text('Gato')),
+                        DropdownMenuItem(value: 'Otro', child: Text('Otro')),
+                      ],
+                      onChanged: _aplicandoFiltros
+                          ? null
+                          : (valor) {
+                              if (valor == null) {
+                                return;
+                              }
 
-                        setState(() {
-                          _especieSeleccionada = valor;
-                        });
-                      },
+                              setState(() {
+                                _especieSeleccionada = valor;
+                              });
+                            },
+                    ),
+                  ),
+                  SizedBox(
+                    width: 220,
+                    child: TextField(
+                      controller: _ubicacionController,
+                      enabled: !_aplicandoFiltros,
+                      decoration: const InputDecoration(
+                        labelText: 'Ubicación',
+                        hintText: 'Ejemplo: parque',
+                        prefixIcon: Icon(Icons.location_on_outlined),
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                   ),
                   SizedBox(
@@ -313,21 +449,61 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
                       },
                     ),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: _hayFiltros ? _limpiarFiltros : null,
-                    icon: const Icon(Icons.filter_alt_off_outlined),
-                    label: const Text('Limpiar filtros'),
+                  _construirSelectorFecha(
+                    etiqueta: 'Fecha desde',
+                    fecha: _fechaDesde,
+                    onSeleccionar: _seleccionarFechaDesde,
+                    onLimpiar: () {
+                      setState(() {
+                        _fechaDesde = null;
+                      });
+                    },
+                  ),
+                  _construirSelectorFecha(
+                    etiqueta: 'Fecha hasta',
+                    fecha: _fechaHasta,
+                    onSeleccionar: _seleccionarFechaHasta,
+                    onLimpiar: () {
+                      setState(() {
+                        _fechaHasta = null;
+                      });
+                    },
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Text(
-                '$cantidadResultados '
-                '${cantidadResultados == 1 ? 'resultado' : 'resultados'}',
-                style: const TextStyle(
-                  color: Color(0xFF667781),
-                  fontWeight: FontWeight.w600,
-                ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  FilledButton.icon(
+                    onPressed: _aplicandoFiltros ? null : _aplicarFiltros,
+                    icon: _aplicandoFiltros
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.filter_alt_outlined),
+                    label: const Text('Aplicar filtros'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _hayFiltros && !_aplicandoFiltros
+                        ? _limpiarFiltros
+                        : null,
+                    icon: const Icon(Icons.filter_alt_off_outlined),
+                    label: const Text('Limpiar filtros'),
+                  ),
+                  Text(
+                    '$cantidadResultados '
+                    '${cantidadResultados == 1 ? 'resultado' : 'resultados'}',
+                    style: const TextStyle(
+                      color: Color(0xFF667781),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -511,7 +687,7 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(24),
         children: [
-          const SizedBox(height: 80),
+          const SizedBox(height: 70),
           const Icon(
             Icons.search_off_outlined,
             size: 80,
@@ -528,8 +704,8 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
           ),
           const SizedBox(height: 10),
           const Text(
-            'Prueba con otro texto o cambia '
-            'los filtros seleccionados.',
+            'Prueba con otros criterios '
+            'o limpia los filtros.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Color(0xFF667781)),
           ),
@@ -553,7 +729,7 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(24),
         children: [
-          const SizedBox(height: 100),
+          const SizedBox(height: 90),
           const Icon(Icons.pets_outlined, size: 80, color: Color(0xFF667781)),
           const SizedBox(height: 18),
           Text(
@@ -649,7 +825,7 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
         title: const Text('Reportes de mascotas'),
         actions: [
           IconButton(
-            onPressed: _actualizarReportes,
+            onPressed: _aplicandoFiltros ? null : _actualizarReportes,
             tooltip: 'Actualizar reportes',
             icon: const Icon(Icons.refresh),
           ),
@@ -658,7 +834,8 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
       body: FutureBuilder<List<ResumenReporte>>(
         future: _reportes,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              !_aplicandoFiltros) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -674,11 +851,11 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
 
           final reportes = snapshot.data ?? <ResumenReporte>[];
 
-          final reportesFiltrados = _filtrarReportes(reportes);
+          final reportesFiltrados = _filtrarLocalmente(reportes);
 
           return Column(
             children: [
-              _construirFiltros(reportes, reportesFiltrados.length),
+              _construirFiltros(reportesFiltrados.length),
               Expanded(
                 child: _construirLista(
                   reportesFiltrados,
