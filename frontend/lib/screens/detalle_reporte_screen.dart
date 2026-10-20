@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../models/avistamiento.dart';
 import '../models/contacto_reporte.dart';
@@ -243,6 +244,82 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
     final mes = fechaConvertida.month.toString().padLeft(2, '0');
 
     return '$dia/$mes/${fechaConvertida.year}';
+  }
+
+  String _construirMensajeCompartir(DetalleReporte reporte) {
+    final nombreMascota = reporte.nombreMascota?.trim().isNotEmpty == true
+        ? reporte.nombreMascota!
+        : 'No registrado';
+
+    final raza = reporte.raza?.trim().isNotEmpty == true
+        ? reporte.raza!
+        : 'No registrada';
+
+    final senas = reporte.senasParticulares?.trim().isNotEmpty == true
+        ? reporte.senasParticulares!
+        : 'No registradas';
+
+    return '''
+Pet Rescue - Reporte de mascota
+
+Código: ${reporte.codigo}
+Título: ${reporte.titulo}
+Nombre: $nombreMascota
+Especie: ${reporte.especie}
+Raza: $raza
+Color: ${reporte.color}
+Tamaño: ${reporte.tamano}
+Señas particulares: $senas
+
+Ubicación aproximada: ${reporte.ubicacionExtravio}
+Fecha del extravío: ${_formatearFechaAvistamiento(reporte.fechaExtravio)}
+Estado: ${reporte.estado}
+
+${reporte.descripcion}
+
+Si tienes información, consulta este reporte en Pet Rescue.
+''';
+  }
+
+  Future<void> _compartirReporte(
+    BuildContext botonContext,
+    DetalleReporte reporte,
+  ) async {
+    final mensaje = _construirMensajeCompartir(reporte);
+
+    try {
+      final caja = botonContext.findRenderObject();
+
+      final origen = caja is RenderBox
+          ? caja.localToGlobal(Offset.zero) & caja.size
+          : null;
+
+      final resultado = await SharePlus.instance.share(
+        ShareParams(
+          text: mensaje,
+          title: 'Pet Rescue - ${reporte.codigo}',
+          subject: 'Reporte de mascota ${reporte.codigo}',
+          sharePositionOrigin: origen,
+        ),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      if (resultado.status == ShareResultStatus.success) {
+        _mostrarMensaje('Reporte compartido correctamente.', esError: false);
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      _mostrarMensaje(
+        'No fue posible abrir las opciones para compartir.',
+        esError: true,
+      );
+    }
   }
 
   String _formatearHoraAvistamiento(String? hora) {
@@ -784,12 +861,35 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                Text(
-                  reporte.titulo,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF183B4E),
-                  ),
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 16,
+                  runSpacing: 12,
+                  children: [
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 650),
+                      child: Text(
+                        reporte.titulo,
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF183B4E),
+                            ),
+                      ),
+                    ),
+                    Builder(
+                      builder: (botonContext) {
+                        return OutlinedButton.icon(
+                          onPressed: () {
+                            _compartirReporte(botonContext, reporte);
+                          },
+                          icon: const Icon(Icons.share_outlined),
+                          label: const Text('Compartir reporte'),
+                        );
+                      },
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Text(
