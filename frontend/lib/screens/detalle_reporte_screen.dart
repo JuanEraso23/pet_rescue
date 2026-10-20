@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/avistamiento.dart';
 import '../models/contacto_reporte.dart';
@@ -762,6 +764,77 @@ Si tienes información, consulta este reporte en Pet Rescue.
     );
   }
 
+  String _normalizarTelefono(String valor) {
+    return valor.replaceAll(RegExp(r'[^0-9+]'), '');
+  }
+
+  Future<void> _abrirAplicacionContacto(Uri uri) async {
+    try {
+      final abierto = await launchUrl(uri);
+
+      if (!abierto && mounted) {
+        _mostrarMensaje(
+          'No hay una aplicación disponible '
+          'para realizar esta acción.',
+          esError: true,
+        );
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      _mostrarMensaje(
+        'No fue posible abrir la aplicación '
+        'de contacto.',
+        esError: true,
+      );
+    }
+  }
+
+  Future<void> _llamarContacto(String telefono) async {
+    final numero = _normalizarTelefono(telefono);
+
+    if (numero.isEmpty) {
+      _mostrarMensaje('El número de teléfono no es válido.', esError: true);
+      return;
+    }
+
+    await _abrirAplicacionContacto(Uri(scheme: 'tel', path: numero));
+  }
+
+  Future<void> _enviarCorreo(String correo) async {
+    final correoLimpio = correo.trim();
+
+    if (correoLimpio.isEmpty || !correoLimpio.contains('@')) {
+      _mostrarMensaje('El correo electrónico no es válido.', esError: true);
+      return;
+    }
+
+    await _abrirAplicacionContacto(
+      Uri(
+        scheme: 'mailto',
+        path: correoLimpio,
+        queryParameters: {
+          'subject': 'Información sobre un reporte de Pet Rescue',
+          'body':
+              'Hola, tengo información relacionada '
+              'con el reporte publicado en Pet Rescue.',
+        },
+      ),
+    );
+  }
+
+  Future<void> _copiarContacto(String valor) async {
+    await Clipboard.setData(ClipboardData(text: valor));
+
+    if (!mounted) {
+      return;
+    }
+
+    _mostrarMensaje('Contacto copiado al portapapeles.', esError: false);
+  }
+
   Widget _construirContacto() {
     return FutureBuilder<ContactoReporte?>(
       future: _contacto,
@@ -818,13 +891,71 @@ Si tienes información, consulta este reporte en Pet Rescue.
         }
 
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _FilaDato(etiqueta: 'Tipo', valor: contacto.tipoContacto),
             _FilaDato(etiqueta: 'Contacto', valor: contacto.valorContacto),
             _FilaDato(
               etiqueta: 'Visibilidad',
-              valor: contacto.mostrarPublicamente ? 'Publico' : 'Privado',
+              valor: contacto.esPublico ? 'Público' : 'Privado',
             ),
+            if (contacto.permiteComunicacion) ...[
+              const SizedBox(height: 10),
+              const Text(
+                'Utiliza este medio únicamente para '
+                'compartir información relacionada con '
+                'la mascota. Evita enviar datos personales '
+                'innecesarios.',
+                style: TextStyle(color: Color(0xFF667781)),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  if (contacto.esTelefono)
+                    FilledButton.icon(
+                      onPressed: () {
+                        _llamarContacto(contacto.valorContacto);
+                      },
+                      icon: const Icon(Icons.phone_outlined),
+                      label: const Text('Llamar'),
+                    ),
+                  if (contacto.esCorreo)
+                    FilledButton.icon(
+                      onPressed: () {
+                        _enviarCorreo(contacto.valorContacto);
+                      },
+                      icon: const Icon(Icons.email_outlined),
+                      label: const Text('Enviar correo'),
+                    ),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      _copiarContacto(contacto.valorContacto);
+                    },
+                    icon: const Icon(Icons.copy_outlined),
+                    label: const Text('Copiar contacto'),
+                  ),
+                ],
+              ),
+            ] else if (!contacto.esPublico) ...[
+              const SizedBox(height: 10),
+              const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.lock_outline, color: Color(0xFF667781)),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'La persona que publicó el reporte '
+                      'decidió mantener privado el medio '
+                      'de contacto.',
+                      style: TextStyle(color: Color(0xFF667781)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         );
       },
