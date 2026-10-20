@@ -7,6 +7,11 @@ class ResumenReporte {
   final String estado;
   final String? nombreMascota;
   final String especie;
+  final String? raza;
+  final String color;
+  final String tamano;
+  final int? edadAproximada;
+  final String? senasParticulares;
   final String ubicacionExtravio;
   final String fechaExtravio;
   final DateTime fechaCreacion;
@@ -19,6 +24,11 @@ class ResumenReporte {
     required this.estado,
     required this.nombreMascota,
     required this.especie,
+    required this.raza,
+    required this.color,
+    required this.tamano,
+    required this.edadAproximada,
+    required this.senasParticulares,
     required this.ubicacionExtravio,
     required this.fechaExtravio,
     required this.fechaCreacion,
@@ -47,6 +57,11 @@ class ResumenReporte {
       estado: json['estado'] as String,
       nombreMascota: json['nombre_mascota'] as String?,
       especie: json['especie'] as String,
+      raza: json['raza'] as String?,
+      color: json['color'] as String,
+      tamano: json['tamano'] as String,
+      edadAproximada: json['edad_aproximada'] as int?,
+      senasParticulares: json['senas_particulares'] as String?,
       ubicacionExtravio: json['ubicacion_extravio'] as String,
       fechaExtravio: json['fecha_extravio'] as String,
       fechaCreacion: DateTime.parse(json['fecha_creacion'] as String),

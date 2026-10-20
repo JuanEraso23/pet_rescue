@@ -9,27 +9,27 @@ class ListadoReportesScreen extends StatefulWidget {
   const ListadoReportesScreen({super.key});
 
   @override
-  State<ListadoReportesScreen> createState() {
-    return _ListadoReportesScreenState();
-  }
+  State<ListadoReportesScreen> createState() => _ListadoReportesScreenState();
 }
 
 class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
   final ReporteService _service = ReporteService();
-
   final TextEditingController _busquedaController = TextEditingController();
-
   final TextEditingController _ubicacionController = TextEditingController();
+  final TextEditingController _razaController = TextEditingController();
+  final TextEditingController _colorController = TextEditingController();
+  final TextEditingController _edadMaximaController = TextEditingController();
+  final TextEditingController _senasController = TextEditingController();
 
   late Future<List<ResumenReporte>> _reportes;
 
   String _especieSeleccionada = 'Todas';
   String _estadoSeleccionado = 'Todos';
-
+  String _tamanoSeleccionado = 'Todos';
   DateTime? _fechaDesde;
   DateTime? _fechaHasta;
-
   bool _aplicandoFiltros = false;
+  bool _mostrarCaracteristicas = false;
 
   @override
   void initState() {
@@ -41,7 +41,17 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
   void dispose() {
     _busquedaController.dispose();
     _ubicacionController.dispose();
+    _razaController.dispose();
+    _colorController.dispose();
+    _edadMaximaController.dispose();
+    _senasController.dispose();
     super.dispose();
+  }
+
+  int? _obtenerEdadMaxima() {
+    final texto = _edadMaximaController.text.trim();
+    if (texto.isEmpty) return null;
+    return int.tryParse(texto);
   }
 
   void _cargarReportes() {
@@ -50,14 +60,16 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
       ubicacion: _ubicacionController.text,
       fechaDesde: _fechaDesde,
       fechaHasta: _fechaHasta,
+      raza: _razaController.text,
+      color: _colorController.text,
+      tamano: _tamanoSeleccionado,
+      edadMaxima: _obtenerEdadMaxima(),
+      senas: _senasController.text,
     );
   }
 
   Future<void> _actualizarReportes() async {
-    setState(() {
-      _cargarReportes();
-    });
-
+    setState(_cargarReportes);
     await _reportes;
   }
 
@@ -66,12 +78,22 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
         _fechaHasta != null &&
         _fechaDesde!.isAfter(_fechaHasta!)) {
       _mostrarMensaje(
-        'La fecha inicial no puede ser posterior '
-        'a la fecha final.',
+        'La fecha inicial no puede ser posterior a la fecha final.',
         esError: true,
       );
-
       return;
+    }
+
+    final edadTexto = _edadMaximaController.text.trim();
+    if (edadTexto.isNotEmpty) {
+      final edad = int.tryParse(edadTexto);
+      if (edad == null || edad < 0) {
+        _mostrarMensaje(
+          'La edad máxima debe ser un número entero mayor o igual a cero.',
+          esError: true,
+        );
+        return;
+      }
     }
 
     setState(() {
@@ -82,25 +104,27 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     try {
       await _reportes;
     } catch (_) {
-      // El FutureBuilder muestra el error correspondiente.
+      // FutureBuilder presenta el error.
     } finally {
-      if (mounted) {
-        setState(() {
-          _aplicandoFiltros = false;
-        });
-      }
+      if (mounted) setState(() => _aplicandoFiltros = false);
     }
   }
 
   Future<void> _limpiarFiltros() async {
     _busquedaController.clear();
     _ubicacionController.clear();
+    _razaController.clear();
+    _colorController.clear();
+    _edadMaximaController.clear();
+    _senasController.clear();
 
     setState(() {
       _especieSeleccionada = 'Todas';
       _estadoSeleccionado = 'Todos';
+      _tamanoSeleccionado = 'Todos';
       _fechaDesde = null;
       _fechaHasta = null;
+      _mostrarCaracteristicas = false;
       _aplicandoFiltros = true;
       _cargarReportes();
     });
@@ -108,25 +132,16 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     try {
       await _reportes;
     } catch (_) {
-      // El FutureBuilder muestra el error correspondiente.
+      // FutureBuilder presenta el error.
     } finally {
-      if (mounted) {
-        setState(() {
-          _aplicandoFiltros = false;
-        });
-      }
+      if (mounted) setState(() => _aplicandoFiltros = false);
     }
   }
 
   Future<void> _abrirRegistro() async {
     await Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => const RegistroReporteScreen()));
-
-    if (!mounted) {
-      return;
-    }
-
-    await _actualizarReportes();
+    if (mounted) await _actualizarReportes();
   }
 
   Future<void> _abrirDetalle(ResumenReporte reporte) async {
@@ -135,12 +150,7 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
         builder: (_) => DetalleReporteScreen(reporteId: reporte.id),
       ),
     );
-
-    if (!mounted) {
-      return;
-    }
-
-    await _actualizarReportes();
+    if (mounted) await _actualizarReportes();
   }
 
   Future<void> _abrirGestion(ResumenReporte reporte) async {
@@ -149,7 +159,6 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
         'Solo se pueden gestionar reportes activos.',
         esError: true,
       );
-
       return;
     }
 
@@ -159,51 +168,29 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
             DetalleReporteScreen(reporteId: reporte.id, permitirGestion: true),
       ),
     );
-
-    if (!mounted) {
-      return;
-    }
-
-    await _actualizarReportes();
+    if (mounted) await _actualizarReportes();
   }
 
-  Future<void> _seleccionarFechaDesde() async {
+  Future<void> _seleccionarFecha({required bool desde}) async {
     final fecha = await showDatePicker(
       context: context,
-      initialDate: _fechaDesde ?? DateTime.now(),
+      initialDate: desde
+          ? (_fechaDesde ?? DateTime.now())
+          : (_fechaHasta ?? _fechaDesde ?? DateTime.now()),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
-      helpText: 'Seleccionar fecha inicial',
+      helpText: desde ? 'Seleccionar fecha inicial' : 'Seleccionar fecha final',
       cancelText: 'Cancelar',
       confirmText: 'Aceptar',
     );
 
-    if (fecha == null || !mounted) {
-      return;
-    }
-
+    if (fecha == null || !mounted) return;
     setState(() {
-      _fechaDesde = fecha;
-    });
-  }
-
-  Future<void> _seleccionarFechaHasta() async {
-    final fecha = await showDatePicker(
-      context: context,
-      initialDate: _fechaHasta ?? _fechaDesde ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-      helpText: 'Seleccionar fecha final',
-      cancelText: 'Cancelar',
-      confirmText: 'Aceptar',
-    );
-
-    if (fecha == null || !mounted) {
-      return;
-    }
-
-    setState(() {
-      _fechaHasta = fecha;
+      if (desde) {
+        _fechaDesde = fecha;
+      } else {
+        _fechaHasta = fecha;
+      }
     });
   }
 
@@ -220,7 +207,6 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
 
   List<ResumenReporte> _filtrarLocalmente(List<ResumenReporte> reportes) {
     final texto = _busquedaController.text.trim().toLowerCase();
-
     return reportes.where((reporte) {
       final coincideTexto =
           texto.isEmpty ||
@@ -228,38 +214,34 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
           reporte.titulo.toLowerCase().contains(texto) ||
           (reporte.nombreMascota ?? '').toLowerCase().contains(texto) ||
           reporte.ubicacionExtravio.toLowerCase().contains(texto);
-
       final coincideEstado =
           _estadoSeleccionado == 'Todos' ||
           reporte.estado == _estadoSeleccionado;
-
       return coincideTexto && coincideEstado;
     }).toList();
   }
 
-  bool get _hayFiltros {
-    return _busquedaController.text.trim().isNotEmpty ||
-        _ubicacionController.text.trim().isNotEmpty ||
-        _especieSeleccionada != 'Todas' ||
-        _estadoSeleccionado != 'Todos' ||
-        _fechaDesde != null ||
-        _fechaHasta != null;
-  }
+  bool get _hayFiltros =>
+      _busquedaController.text.trim().isNotEmpty ||
+      _ubicacionController.text.trim().isNotEmpty ||
+      _razaController.text.trim().isNotEmpty ||
+      _colorController.text.trim().isNotEmpty ||
+      _edadMaximaController.text.trim().isNotEmpty ||
+      _senasController.text.trim().isNotEmpty ||
+      _especieSeleccionada != 'Todas' ||
+      _estadoSeleccionado != 'Todos' ||
+      _tamanoSeleccionado != 'Todos' ||
+      _fechaDesde != null ||
+      _fechaHasta != null;
 
   String _formatearFecha(String fecha) {
-    final fechaConvertida = DateTime.tryParse(fecha);
-
-    if (fechaConvertida == null) {
-      return fecha;
-    }
-
-    return _formatearDateTime(fechaConvertida);
+    final valor = DateTime.tryParse(fecha);
+    return valor == null ? fecha : _formatearDateTime(valor);
   }
 
   String _formatearDateTime(DateTime fecha) {
     final dia = fecha.day.toString().padLeft(2, '0');
     final mes = fecha.month.toString().padLeft(2, '0');
-
     return '$dia/$mes/${fecha.year}';
   }
 
@@ -267,10 +249,8 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     switch (estado) {
       case 'Encontrado':
         return const Color(0xFFDDF5EF);
-
       case 'Cerrado':
         return const Color(0xFFE2E8F0);
-
       default:
         return const Color(0xFFFFF1C7);
     }
@@ -280,25 +260,47 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     switch (estado) {
       case 'Encontrado':
         return Icons.check_circle_outline;
-
       case 'Cerrado':
         return Icons.lock_outline;
-
       default:
         return Icons.schedule_outlined;
     }
   }
 
-  Widget _construirSelectorFecha({
+  Widget _campoTexto({
+    required TextEditingController controller,
+    required String etiqueta,
+    required String ayuda,
+    required IconData icono,
+    TextInputType? teclado,
+  }) {
+    return SizedBox(
+      width: 220,
+      child: TextField(
+        controller: controller,
+        enabled: !_aplicandoFiltros,
+        keyboardType: teclado,
+        decoration: InputDecoration(
+          labelText: etiqueta,
+          hintText: ayuda,
+          prefixIcon: Icon(icono),
+          border: const OutlineInputBorder(),
+        ),
+      ),
+    );
+  }
+
+  Widget _selectorFecha({
     required String etiqueta,
     required DateTime? fecha,
-    required VoidCallback onSeleccionar,
-    required VoidCallback onLimpiar,
+    required bool desde,
   }) {
     return SizedBox(
       width: 220,
       child: OutlinedButton(
-        onPressed: _aplicandoFiltros ? null : onSeleccionar,
+        onPressed: _aplicandoFiltros
+            ? null
+            : () => _seleccionarFecha(desde: desde),
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 17),
           alignment: Alignment.centerLeft,
@@ -316,7 +318,15 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
             if (fecha != null)
               IconButton(
                 tooltip: 'Limpiar $etiqueta',
-                onPressed: _aplicandoFiltros ? null : onLimpiar,
+                onPressed: _aplicandoFiltros
+                    ? null
+                    : () => setState(() {
+                        if (desde) {
+                          _fechaDesde = null;
+                        } else {
+                          _fechaHasta = null;
+                        }
+                      }),
                 icon: const Icon(Icons.close, size: 18),
               ),
           ],
@@ -336,24 +346,16 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
             children: [
               TextField(
                 controller: _busquedaController,
-                onChanged: (_) {
-                  setState(() {});
-                },
+                onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   labelText: 'Buscar reportes',
-                  hintText:
-                      ('Código, título, mascota '
-                      'o ubicación'),
+                  hintText: 'Código, título, mascota o ubicación',
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _busquedaController.text.isEmpty
                       ? null
                       : IconButton(
                           tooltip: 'Borrar búsqueda',
-                          onPressed: () {
-                            setState(() {
-                              _busquedaController.clear();
-                            });
-                          },
+                          onPressed: () => setState(_busquedaController.clear),
                           icon: const Icon(Icons.close),
                         ),
                   border: const OutlineInputBorder(),
@@ -363,15 +365,11 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
-                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   SizedBox(
                     width: 220,
                     child: DropdownButtonFormField<String>(
-                      key: ValueKey(
-                        'especie-'
-                        '$_especieSeleccionada',
-                      ),
+                      key: ValueKey('especie-$_especieSeleccionada'),
                       initialValue: _especieSeleccionada,
                       decoration: const InputDecoration(
                         labelText: 'Especie',
@@ -386,37 +384,21 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
                       ],
                       onChanged: _aplicandoFiltros
                           ? null
-                          : (valor) {
-                              if (valor == null) {
-                                return;
-                              }
-
-                              setState(() {
-                                _especieSeleccionada = valor;
-                              });
-                            },
+                          : (valor) => setState(
+                              () => _especieSeleccionada = valor ?? 'Todas',
+                            ),
                     ),
                   ),
-                  SizedBox(
-                    width: 220,
-                    child: TextField(
-                      controller: _ubicacionController,
-                      enabled: !_aplicandoFiltros,
-                      decoration: const InputDecoration(
-                        labelText: 'Ubicación',
-                        hintText: 'Ejemplo: parque',
-                        prefixIcon: Icon(Icons.location_on_outlined),
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
+                  _campoTexto(
+                    controller: _ubicacionController,
+                    etiqueta: 'Ubicación',
+                    ayuda: 'Ejemplo: parque',
+                    icono: Icons.location_on_outlined,
                   ),
                   SizedBox(
                     width: 220,
                     child: DropdownButtonFormField<String>(
-                      key: ValueKey(
-                        'estado-'
-                        '$_estadoSeleccionado',
-                      ),
+                      key: ValueKey('estado-$_estadoSeleccionado'),
                       initialValue: _estadoSeleccionado,
                       decoration: const InputDecoration(
                         labelText: 'Estado',
@@ -438,36 +420,105 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
                           child: Text('Cerrado'),
                         ),
                       ],
-                      onChanged: (valor) {
-                        if (valor == null) {
-                          return;
-                        }
-
-                        setState(() {
-                          _estadoSeleccionado = valor;
-                        });
-                      },
+                      onChanged: (valor) => setState(
+                        () => _estadoSeleccionado = valor ?? 'Todos',
+                      ),
                     ),
                   ),
-                  _construirSelectorFecha(
+                  _selectorFecha(
                     etiqueta: 'Fecha desde',
                     fecha: _fechaDesde,
-                    onSeleccionar: _seleccionarFechaDesde,
-                    onLimpiar: () {
-                      setState(() {
-                        _fechaDesde = null;
-                      });
-                    },
+                    desde: true,
                   ),
-                  _construirSelectorFecha(
+                  _selectorFecha(
                     etiqueta: 'Fecha hasta',
                     fecha: _fechaHasta,
-                    onSeleccionar: _seleccionarFechaHasta,
-                    onLimpiar: () {
-                      setState(() {
-                        _fechaHasta = null;
-                      });
-                    },
+                    desde: false,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ExpansionTile(
+                initiallyExpanded: _mostrarCaracteristicas,
+                onExpansionChanged: (valor) {
+                  setState(() => _mostrarCaracteristicas = valor);
+                },
+                tilePadding: EdgeInsets.zero,
+                title: const Text(
+                  'Características físicas',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: const Text(
+                  'Raza, color, tamaño, edad y señas particulares',
+                ),
+                leading: const Icon(Icons.tune_outlined),
+                childrenPadding: const EdgeInsets.only(bottom: 12),
+                children: [
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      _campoTexto(
+                        controller: _razaController,
+                        etiqueta: 'Raza',
+                        ayuda: 'Ejemplo: mestizo',
+                        icono: Icons.pets_outlined,
+                      ),
+                      _campoTexto(
+                        controller: _colorController,
+                        etiqueta: 'Color',
+                        ayuda: 'Ejemplo: negro',
+                        icono: Icons.palette_outlined,
+                      ),
+                      SizedBox(
+                        width: 220,
+                        child: DropdownButtonFormField<String>(
+                          key: ValueKey('tamano-$_tamanoSeleccionado'),
+                          initialValue: _tamanoSeleccionado,
+                          decoration: const InputDecoration(
+                            labelText: 'Tamaño',
+                            prefixIcon: Icon(Icons.straighten_outlined),
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'Todos',
+                              child: Text('Todos'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Pequeno',
+                              child: Text('Pequeño'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Mediano',
+                              child: Text('Mediano'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Grande',
+                              child: Text('Grande'),
+                            ),
+                          ],
+                          onChanged: _aplicandoFiltros
+                              ? null
+                              : (valor) => setState(
+                                  () => _tamanoSeleccionado = valor ?? 'Todos',
+                                ),
+                        ),
+                      ),
+                      _campoTexto(
+                        controller: _edadMaximaController,
+                        etiqueta: 'Edad máxima',
+                        ayuda: 'Ejemplo: 5',
+                        icono: Icons.cake_outlined,
+                        teclado: TextInputType.number,
+                      ),
+                      _campoTexto(
+                        controller: _senasController,
+                        etiqueta: 'Señas particulares',
+                        ayuda: 'Ejemplo: collar azul',
+                        icono: Icons.description_outlined,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -514,7 +565,6 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
 
   Widget _construirImagen(ResumenReporte reporte) {
     final url = reporte.fotografiaUrlCompleta;
-
     if (url == null) {
       return Container(
         height: 190,
@@ -547,42 +597,16 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
       child: Image.network(
         url,
         fit: BoxFit.cover,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) {
-            return child;
-          }
-
-          final total = loadingProgress.expectedTotalBytes;
-
-          final progreso = total == null
-              ? null
-              : loadingProgress.cumulativeBytesLoaded / total;
-
-          return Center(child: CircularProgressIndicator(value: progreso));
-        },
-        errorBuilder: (context, error, stackTrace) {
-          return const ColoredBox(
-            color: Color(0xFFE8F0F3),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.broken_image_outlined,
-                    size: 56,
-                    color: Colors.redAccent,
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    'No fue posible mostrar '
-                    'la fotografía.',
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+        errorBuilder: (_, _, _) => const ColoredBox(
+          color: Color(0xFFE8F0F3),
+          child: Center(
+            child: Icon(
+              Icons.broken_image_outlined,
+              size: 56,
+              color: Colors.redAccent,
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
@@ -591,9 +615,7 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () {
-          _abrirDetalle(reporte);
-        },
+        onTap: () => _abrirDetalle(reporte),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -607,19 +629,13 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      Chip(
-                        label: Text(reporte.codigo),
-                        avatar: const Icon(Icons.tag, size: 18),
-                      ),
+                      Chip(label: Text(reporte.codigo)),
                       Chip(
                         label: Text(reporte.estado),
                         avatar: Icon(_iconoEstado(reporte.estado), size: 18),
                         backgroundColor: _colorEstado(reporte.estado),
                       ),
-                      Chip(
-                        label: Text(reporte.especie),
-                        avatar: const Icon(Icons.pets, size: 18),
-                      ),
+                      Chip(label: Text(reporte.especie)),
                     ],
                   ),
                   const SizedBox(height: 14),
@@ -655,17 +671,13 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
                     runSpacing: 10,
                     children: [
                       FilledButton.tonalIcon(
-                        onPressed: () {
-                          _abrirDetalle(reporte);
-                        },
+                        onPressed: () => _abrirDetalle(reporte),
                         icon: const Icon(Icons.visibility_outlined),
                         label: const Text('Ver detalle'),
                       ),
                       if (reporte.estado == 'Activo')
                         OutlinedButton.icon(
-                          onPressed: () {
-                            _abrirGestion(reporte);
-                          },
+                          onPressed: () => _abrirGestion(reporte),
                           icon: const Icon(Icons.settings_outlined),
                           label: const Text('Gestionar reporte'),
                         ),
@@ -680,11 +692,9 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     );
   }
 
-  Widget _construirSinResultados() {
-    return RefreshIndicator(
-      onRefresh: _actualizarReportes,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
+  Widget _construirLista(List<ResumenReporte> reportes) {
+    if (reportes.isEmpty) {
+      return ListView(
         padding: const EdgeInsets.all(24),
         children: [
           const SizedBox(height: 70),
@@ -694,20 +704,19 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
             color: Color(0xFF667781),
           ),
           const SizedBox(height: 18),
-          Text(
+          const Text(
             'No se encontraron reportes',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            style: TextStyle(
+              fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF183B4E),
+              color: Color(0xFF183B4E),
             ),
           ),
           const SizedBox(height: 10),
           const Text(
-            'Prueba con otros criterios '
-            'o limpia los filtros.',
+            'Prueba con otros criterios o limpia los filtros.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF667781)),
           ),
           const SizedBox(height: 24),
           Center(
@@ -718,103 +727,38 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _construirListaVacia() {
-    return RefreshIndicator(
-      onRefresh: _actualizarReportes,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(24),
-        children: [
-          const SizedBox(height: 90),
-          const Icon(Icons.pets_outlined, size: 80, color: Color(0xFF667781)),
-          const SizedBox(height: 18),
-          Text(
-            'No hay reportes disponibles',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF183B4E),
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Cuando se registre una mascota '
-            'extraviada, el reporte aparecerá '
-            'en esta sección.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF667781)),
-          ),
-          const SizedBox(height: 24),
-          Center(
-            child: FilledButton.icon(
-              onPressed: _abrirRegistro,
-              icon: const Icon(Icons.add),
-              label: const Text('Crear reporte'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _construirLista(
-    List<ResumenReporte> reportes, {
-    required bool hayFiltros,
-  }) {
-    if (reportes.isEmpty && hayFiltros) {
-      return _construirSinResultados();
+      );
     }
 
-    if (reportes.isEmpty) {
-      return _construirListaVacia();
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columnas = constraints.maxWidth >= 1100
+            ? 3
+            : constraints.maxWidth >= 700
+            ? 2
+            : 1;
 
-    return RefreshIndicator(
-      onRefresh: _actualizarReportes,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final ancho = constraints.maxWidth;
-
-          final columnas = ancho >= 1100
-              ? 3
-              : ancho >= 700
-              ? 2
-              : 1;
-
-          if (columnas == 1) {
-            return ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(20),
-              itemCount: reportes.length,
-              separatorBuilder: (_, _) {
-                return const SizedBox(height: 18);
-              },
-              itemBuilder: (context, index) {
-                return _construirTarjeta(reportes[index]);
-              },
-            );
-          }
-
-          return GridView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
+        if (columnas == 1) {
+          return ListView.separated(
             padding: const EdgeInsets.all(20),
             itemCount: reportes.length,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columnas,
-              crossAxisSpacing: 18,
-              mainAxisSpacing: 18,
-              childAspectRatio: columnas == 3 ? 0.78 : 0.82,
-            ),
-            itemBuilder: (context, index) {
-              return _construirTarjeta(reportes[index]);
-            },
+            separatorBuilder: (_, _) => const SizedBox(height: 18),
+            itemBuilder: (_, index) => _construirTarjeta(reportes[index]),
           );
-        },
-      ),
+        }
+
+        return GridView.builder(
+          padding: const EdgeInsets.all(20),
+          itemCount: reportes.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columnas,
+            crossAxisSpacing: 18,
+            mainAxisSpacing: 18,
+            childAspectRatio: columnas == 3 ? 0.78 : 0.82,
+          ),
+          itemBuilder: (_, index) => _construirTarjeta(reportes[index]),
+        );
+      },
     );
   }
 
@@ -850,18 +794,12 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
           }
 
           final reportes = snapshot.data ?? <ResumenReporte>[];
-
-          final reportesFiltrados = _filtrarLocalmente(reportes);
+          final filtrados = _filtrarLocalmente(reportes);
 
           return Column(
             children: [
-              _construirFiltros(reportesFiltrados.length),
-              Expanded(
-                child: _construirLista(
-                  reportesFiltrados,
-                  hayFiltros: _hayFiltros,
-                ),
-              ),
+              _construirFiltros(filtrados.length),
+              Expanded(child: _construirLista(filtrados)),
             ],
           );
         },
@@ -937,8 +875,7 @@ class _VistaErrorListado extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             const Text(
-              'No fue posible cargar '
-              'los reportes.',
+              'No fue posible cargar los reportes.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 18,
@@ -950,9 +887,7 @@ class _VistaErrorListado extends StatelessWidget {
             Text(mensaje, textAlign: TextAlign.center),
             const SizedBox(height: 20),
             FilledButton.icon(
-              onPressed: () {
-                onReintentar();
-              },
+              onPressed: onReintentar,
               icon: const Icon(Icons.refresh),
               label: const Text('Reintentar'),
             ),

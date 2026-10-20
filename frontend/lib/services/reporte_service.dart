@@ -223,6 +223,11 @@ class ReporteService {
     String? ubicacion,
     DateTime? fechaDesde,
     DateTime? fechaHasta,
+    String? raza,
+    String? color,
+    String? tamano,
+    int? edadMaxima,
+    String? senas,
   }) async {
     if (fechaDesde != null &&
         fechaHasta != null &&
@@ -233,22 +238,21 @@ class ReporteService {
       );
     }
 
+    if (edadMaxima != null && edadMaxima < 0) {
+      throw Exception('La edad máxima no puede ser negativa.');
+    }
+
     try {
       final parametros = <String, String>{};
 
-      final especieLimpia = especie?.trim();
+      _agregarParametroTexto(
+        parametros,
+        clave: 'especie',
+        valor: especie,
+        valorOmitido: 'Todas',
+      );
 
-      if (especieLimpia != null &&
-          especieLimpia.isNotEmpty &&
-          especieLimpia != 'Todas') {
-        parametros['especie'] = especieLimpia;
-      }
-
-      final ubicacionLimpia = ubicacion?.trim();
-
-      if (ubicacionLimpia != null && ubicacionLimpia.isNotEmpty) {
-        parametros['ubicacion'] = ubicacionLimpia;
-      }
+      _agregarParametroTexto(parametros, clave: 'ubicacion', valor: ubicacion);
 
       if (fechaDesde != null) {
         parametros['fecha_desde'] = _formatearFechaApi(fechaDesde);
@@ -257,6 +261,23 @@ class ReporteService {
       if (fechaHasta != null) {
         parametros['fecha_hasta'] = _formatearFechaApi(fechaHasta);
       }
+
+      _agregarParametroTexto(parametros, clave: 'raza', valor: raza);
+
+      _agregarParametroTexto(parametros, clave: 'color', valor: color);
+
+      _agregarParametroTexto(
+        parametros,
+        clave: 'tamano',
+        valor: tamano,
+        valorOmitido: 'Todos',
+      );
+
+      if (edadMaxima != null) {
+        parametros['edad_maxima'] = edadMaxima.toString();
+      }
+
+      _agregarParametroTexto(parametros, clave: 'senas', valor: senas);
 
       final uri = Uri.parse('$baseUrl/reportes')
           .replace(queryParameters: parametros.isEmpty ? null : parametros);
@@ -411,11 +432,28 @@ class ReporteService {
     }
   }
 
+  void _agregarParametroTexto(
+    Map<String, String> parametros, {
+    required String clave,
+    required String? valor,
+    String? valorOmitido,
+  }) {
+    final valorLimpio = valor?.trim();
+
+    if (valorLimpio == null || valorLimpio.isEmpty) {
+      return;
+    }
+
+    if (valorOmitido != null && valorLimpio == valorOmitido) {
+      return;
+    }
+
+    parametros[clave] = valorLimpio;
+  }
+
   String _formatearFechaApi(DateTime fecha) {
     final anio = fecha.year.toString();
-
     final mes = fecha.month.toString().padLeft(2, '0');
-
     final dia = fecha.day.toString().padLeft(2, '0');
 
     return '$anio-$mes-$dia';
