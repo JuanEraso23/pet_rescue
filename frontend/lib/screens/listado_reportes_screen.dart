@@ -491,7 +491,7 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
                               child: Text('Todos'),
                             ),
                             DropdownMenuItem(
-                              value: 'Pequeno',
+                              value: 'Pequeño',
                               child: Text('Pequeño'),
                             ),
                             DropdownMenuItem(

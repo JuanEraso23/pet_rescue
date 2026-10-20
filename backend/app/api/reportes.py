@@ -117,7 +117,11 @@ def listar_reportes(
     fecha_hasta: date | None = None,
     raza: str | None = None,
     color: str | None = None,
-    tamano: str | None = None,
+    tamano: Literal[
+        "Pequeño",
+        "Mediano",
+        "Grande",
+    ] | None = None,
     edad_maxima: int | None = None,
     senas: str | None = None,
     db: Session = Depends(get_db),
