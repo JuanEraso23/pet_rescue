@@ -7,6 +7,7 @@ import '../models/fotografia_reporte.dart';
 import '../models/reporte.dart';
 import '../services/reporte_service.dart';
 import 'registro_avistamiento_screen.dart';
+import 'editar_reporte_screen.dart';
 
 class DetalleReporteScreen extends StatefulWidget {
   final int reporteId;
@@ -62,6 +63,36 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
     });
 
     await Future.wait([_reporte, _fotografias, _contacto, _avistamientos]);
+  }
+
+  Future<void> _abrirEdicionReporte(DetalleReporte reporte) async {
+    if (reporte.estado != 'Activo') {
+      _mostrarMensaje(
+        'Solo se puede actualizar la información '
+        'de reportes activos.',
+        esError: true,
+      );
+      return;
+    }
+
+    final actualizado = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => EditarReporteScreen(reporte: reporte)),
+    );
+
+    if (actualizado != true || !mounted) {
+      return;
+    }
+
+    await _refrescarInformacion();
+
+    if (!mounted) {
+      return;
+    }
+
+    _mostrarMensaje(
+      'La información del reporte fue actualizada.',
+      esError: false,
+    );
   }
 
   Future<void> _abrirRegistroAvistamiento(DetalleReporte reporte) async {
@@ -900,6 +931,27 @@ Si tienes información, consulta este reporte en Pet Rescue.
                 ),
                 const SizedBox(height: 20),
                 if (widget.permitirGestion) ...[
+                  if (reporte.estado == 'Activo') ...[
+                    _SeccionDetalle(
+                      titulo: 'Gestionar información',
+                      children: [
+                        const Text(
+                          'Actualiza los datos del reporte cuando '
+                          'necesites mantener vigente la información '
+                          'de la mascota o del extravío.',
+                        ),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            _abrirEdicionReporte(reporte);
+                          },
+                          icon: const Icon(Icons.edit_outlined),
+                          label: const Text('Editar información'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   _construirAccionesEstado(reporte),
                   const SizedBox(height: 16),
                 ],

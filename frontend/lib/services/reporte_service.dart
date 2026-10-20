@@ -35,6 +35,41 @@ class ReporteService {
     }
   }
 
+  Future<String> actualizarReporte({
+    required int reporteId,
+    required Map<String, dynamic> cambios,
+  }) async {
+    if (cambios.isEmpty) {
+      throw Exception('Debes modificar al menos un campo.');
+    }
+
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/reportes/$reporteId'),
+        headers: const {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode(cambios),
+      );
+
+      final cuerpo = _decodificarMapa(response);
+
+      if (response.statusCode == 200) {
+        final mensaje = cuerpo['mensaje'];
+
+        if (mensaje is String && mensaje.isNotEmpty) {
+          return mensaje;
+        }
+
+        return 'Reporte actualizado correctamente.';
+      }
+
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvió una respuesta inválida.');
+    }
+  }
+
   Future<void> crearContacto({
     required int reporteId,
     required String tipoContacto,
