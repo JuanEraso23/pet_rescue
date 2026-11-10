@@ -279,6 +279,17 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
     return '$dia/$mes/${fechaConvertida.year}';
   }
 
+  // HU17: evita mostrar null o cadenas vacías en el detalle.
+  String _textoOVacio(String? valor, String alternativo) {
+    final texto = valor?.trim();
+
+    if (texto == null || texto.isEmpty) {
+      return alternativo;
+    }
+
+    return texto;
+  }
+
   String _construirMensajeCompartir(DetalleReporte reporte) {
     final nombreMascota = reporte.nombreMascota?.trim().isNotEmpty == true
         ? reporte.nombreMascota!
@@ -1119,6 +1130,17 @@ Si tienes información, consulta este reporte en Pet Rescue.
                     _FilaDato(
                       etiqueta: 'Señas particulares',
                       valor: reporte.senasParticulares ?? 'No registradas',
+                    ),
+                    _FilaDato(
+                      etiqueta: 'Número de placa',
+                      valor: _textoOVacio(reporte.numeroPlaca, 'No registrada'),
+                    ),
+                    _FilaDato(
+                      etiqueta: 'Número de microchip',
+                      valor: _textoOVacio(
+                        reporte.numeroMicrochip,
+                        'No registrado',
+                      ),
                     ),
                   ],
                 ),

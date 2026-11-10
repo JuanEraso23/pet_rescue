@@ -42,6 +42,8 @@ class DetalleReporte {
   final String tamano;
   final int? edadAproximada;
   final String? senasParticulares;
+  final String? numeroPlaca;
+  final String? numeroMicrochip;
 
   const DetalleReporte({
     required this.id,
@@ -61,6 +63,8 @@ class DetalleReporte {
     required this.tamano,
     required this.edadAproximada,
     required this.senasParticulares,
+    this.numeroPlaca,
+    this.numeroMicrochip,
   });
 
   factory DetalleReporte.fromJson(Map<String, dynamic> json) {
@@ -84,6 +88,8 @@ class DetalleReporte {
       tamano: mascota['tamano'] as String,
       edadAproximada: mascota['edad_aproximada'] as int?,
       senasParticulares: mascota['senas_particulares'] as String?,
+      numeroPlaca: mascota['numero_placa'] as String?,
+      numeroMicrochip: mascota['numero_microchip'] as String?,
     );
   }
 }

@@ -4,6 +4,14 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+def limpiar_identificacion(valor):
+    """HU17: recorta espacios y convierte cadenas vacias en None."""
+    if isinstance(valor, str):
+        valor_limpio = valor.strip()
+        return valor_limpio or None
+    return valor
+
+
 class ReporteCreate(BaseModel):
     titulo: str = Field(min_length=3, max_length=200)
     descripcion: str = Field(min_length=10)
@@ -14,6 +22,8 @@ class ReporteCreate(BaseModel):
     tamano: Literal["Pequeño", "Mediano", "Grande"]
     edad_aproximada: int | None = Field(default=None, ge=0)
     senas_particulares: str | None = None
+    numero_placa: str | None = Field(default=None, max_length=50)
+    numero_microchip: str | None = Field(default=None, max_length=100)
     ubicacion_extravio: str = Field(min_length=3, max_length=200)
     fecha_extravio: date
     hora_extravio: time | None = None
@@ -25,6 +35,11 @@ class ReporteCreate(BaseModel):
         if not valor_limpio:
             raise ValueError("El campo no puede contener solo espacios.")
         return valor_limpio
+
+    @field_validator("numero_placa", "numero_microchip", mode="before")
+    @classmethod
+    def limpiar_identificacion_create(cls, valor):
+        return limpiar_identificacion(valor)
 
     @field_validator("fecha_extravio")
     @classmethod
@@ -75,6 +90,8 @@ class ReporteUpdate(BaseModel):
     ] | None = None
     edad_aproximada: int | None = Field(default=None, ge=0)
     senas_particulares: str | None = None
+    numero_placa: str | None = Field(default=None, max_length=50)
+    numero_microchip: str | None = Field(default=None, max_length=100)
     ubicacion_extravio: str | None = Field(default=None, min_length=3, max_length=200)
     fecha_extravio: date | None = None
     hora_extravio: time | None = None
@@ -105,6 +122,11 @@ class ReporteUpdate(BaseModel):
         if isinstance(valor, str):
             return valor.strip()
         return valor
+
+    @field_validator("numero_placa", "numero_microchip", mode="before")
+    @classmethod
+    def limpiar_identificacion_update(cls, valor):
+        return limpiar_identificacion(valor)
 
     @field_validator("fecha_extravio")
     @classmethod

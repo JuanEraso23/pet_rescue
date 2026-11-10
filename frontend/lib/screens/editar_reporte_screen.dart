@@ -26,6 +26,8 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
   late final TextEditingController _colorController;
   late final TextEditingController _edadController;
   late final TextEditingController _senasController;
+  late final TextEditingController _placaController;
+  late final TextEditingController _microchipController;
   late final TextEditingController _ubicacionController;
 
   late String _especie;
@@ -71,6 +73,14 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
       text: widget.reporte.senasParticulares ?? '',
     );
 
+    _placaController = TextEditingController(
+      text: widget.reporte.numeroPlaca ?? '',
+    );
+
+    _microchipController = TextEditingController(
+      text: widget.reporte.numeroMicrochip ?? '',
+    );
+
     _ubicacionController = TextEditingController(
       text: widget.reporte.ubicacionExtravio,
     );
@@ -93,6 +103,8 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
     _colorController.dispose();
     _edadController.dispose();
     _senasController.dispose();
+    _placaController.dispose();
+    _microchipController.dispose();
     _ubicacionController.dispose();
 
     super.dispose();
@@ -305,6 +317,18 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
 
     if (senas != widget.reporte.senasParticulares) {
       cambios['senas_particulares'] = senas;
+    }
+
+    final placa = _textoOpcional(_placaController.text);
+
+    if (placa != widget.reporte.numeroPlaca) {
+      cambios['numero_placa'] = placa;
+    }
+
+    final microchip = _textoOpcional(_microchipController.text);
+
+    if (microchip != widget.reporte.numeroMicrochip) {
+      cambios['numero_microchip'] = microchip;
     }
 
     final ubicacion = _ubicacionController.text.trim();
@@ -615,6 +639,26 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
                 labelText: 'Señas particulares (opcional)',
                 prefixIcon: Icon(Icons.search_outlined),
                 alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _placaController,
+              enabled: !_guardando,
+              maxLength: 50,
+              decoration: const InputDecoration(
+                labelText: 'Número de placa (opcional)',
+                prefixIcon: Icon(Icons.badge_outlined),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _microchipController,
+              enabled: !_guardando,
+              maxLength: 100,
+              decoration: const InputDecoration(
+                labelText: 'Número de microchip (opcional)',
+                prefixIcon: Icon(Icons.memory_outlined),
               ),
             ),
             const SizedBox(height: 28),
