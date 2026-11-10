@@ -1,0 +1,108 @@
+@startuml PetRescue
+
+title Pet Rescue - Diagrama de clases actual del dominio
+
+skinparam backgroundColor #FFF8F0
+skinparam roundcorner 15
+skinparam shadowing true
+skinparam classAttributeIconSize 0
+
+skinparam class {
+    BackgroundColor #FFFFFF
+    HeaderBackgroundColor #FF8A65
+    BorderColor #455A64
+    ArrowColor #455A64
+}
+
+hide empty methods
+hide circle
+
+class Mascota <<Entidad>> {
+    - id: Integer {PK}
+    - nombre: String [0..1]
+    - especie: String
+    - raza: String [0..1]
+    - color: String
+    - tamano: String
+    - edad_aproximada: Integer [0..1]
+    - senas_particulares: Text [0..1]
+    --
+    + __repr__(): String
+}
+
+class Reporte <<Entidad principal>> {
+    - id: Integer {PK}
+    - codigo: String {UNIQUE}
+    - mascota_id: Integer {FK}
+    - titulo: String
+    - descripcion: Text
+    - tipo: String
+    - estado: String
+    - ubicacion_extravio: String
+    - fecha_extravio: Date
+    - hora_extravio: Time [0..1]
+    - fecha_creacion: DateTime
+    --
+    + __repr__(): String
+}
+
+class FotografiaReporte <<Entidad>> {
+    - id: Integer {PK}
+    - reporte_id: Integer {FK}
+    - nombre_archivo: String
+    - ruta_archivo: String
+    - tipo_mime: String
+    - tamano_bytes: Integer
+    - fecha_creacion: DateTime
+    --
+    + __repr__(): String
+}
+
+class ContactoReporte <<Entidad>> {
+    - id: Integer {PK}
+    - reporte_id: Integer {FK, UNIQUE}
+    - tipo_contacto: String
+    - valor_contacto: String
+    - mostrar_publicamente: Boolean
+    - fecha_creacion: DateTime
+    --
+    + __repr__(): String
+}
+
+class Avistamiento <<Entidad>> {
+    - id: Integer {PK}
+    - reporte_id: Integer {FK}
+    - descripcion: String
+    - ubicacion_aproximada: String
+    - fecha_avistamiento: Date
+    - hora_avistamiento: Time [0..1]
+    - fecha_creacion: DateTime
+    --
+    + __repr__(): String
+}
+
+Mascota "1" -- "0..*" Reporte : tiene
+
+Reporte "1" *-- "0..*" FotografiaReporte : contiene
+
+Reporte "1" *-- "0..1" ContactoReporte : posee
+
+Reporte "1" *-- "0..*" Avistamiento : recibe
+
+note right of Reporte
+    Entidad central del sistema.
+    Relaciona la mascota con
+    fotografías, contacto y
+    posibles avistamientos.
+end note
+
+legend left
+    |= Símbolo |= Significado |
+    | {PK} | Llave primaria |
+    | {FK} | Llave foránea |
+    | {UNIQUE} | Valor único |
+    | [0..1] | Atributo opcional |
+    | *-- | Composición |
+endlegend
+
+@enduml

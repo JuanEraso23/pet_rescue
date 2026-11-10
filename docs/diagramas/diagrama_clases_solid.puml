@@ -1,0 +1,95 @@
+@startuml PetRescueSOLID
+
+title Pet Rescue - Propuesta de clases aplicando SRP
+
+skinparam backgroundColor #FFF8F0
+skinparam roundcorner 15
+skinparam shadowing true
+skinparam classAttributeIconSize 0
+
+skinparam class {
+    BackgroundColor #FFFFFF
+    HeaderBackgroundColor #81C784
+    BorderColor #455A64
+    ArrowColor #455A64
+}
+
+hide empty attributes
+hide circle
+
+package "Servicios propuestos" {
+
+    class ReporteService <<Servicio>> {
+        + crearReporte(datos): ReporteCreado
+        + actualizarReporte(id, cambios): String
+        + consultarReportes(filtros): List
+        + consultarReporte(id): DetalleReporte
+        + actualizarEstado(id, estado): String
+    }
+
+    class FotografiaService <<Servicio>> {
+        + cargarFotografia(id, archivo): FotografiaReporte
+        + consultarFotografias(id): List
+    }
+
+    class ContactoService <<Servicio>> {
+        + crearContacto(id, datos): void
+        + consultarContacto(id): ContactoReporte
+    }
+
+    class AvistamientoService <<Servicio>> {
+        + registrarAvistamiento(id, datos): Avistamiento
+        + consultarAvistamientos(id): List
+    }
+}
+
+class Reporte <<Entidad principal>>
+class FotografiaReporte <<Entidad>>
+class ContactoReporte <<Entidad>>
+class Avistamiento <<Entidad>>
+
+ReporteService ..> Reporte : gestiona
+
+FotografiaService ..> FotografiaReporte : gestiona
+FotografiaService ..> Reporte : asocia con
+
+ContactoService ..> ContactoReporte : gestiona
+ContactoService ..> Reporte : asocia con
+
+AvistamientoService ..> Avistamiento : gestiona
+AvistamientoService ..> Reporte : asocia con
+
+note right of ReporteService
+    SRP:
+    administra únicamente
+    operaciones de reportes.
+end note
+
+note right of FotografiaService
+    SRP:
+    administra únicamente
+    fotografías.
+end note
+
+note right of ContactoService
+    SRP:
+    administra únicamente
+    medios de contacto.
+end note
+
+note right of AvistamientoService
+    SRP:
+    administra únicamente
+    avistamientos.
+end note
+
+note bottom
+    PROPUESTA DE REFACTORIZACIÓN:
+    Estas clases todavía no existen separadas
+    en el código actual de Pet Rescue.
+
+    Actualmente, ReporteService concentra
+    todas estas responsabilidades.
+end note
+
+@enduml
