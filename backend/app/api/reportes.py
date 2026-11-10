@@ -91,6 +91,8 @@ def crear_reporte(
             tipo="Perdida",
             estado="Activo",
             ubicacion_extravio=datos.ubicacion_extravio,
+            latitud=datos.latitud,
+            longitud=datos.longitud,
             fecha_extravio=datos.fecha_extravio,
             hora_extravio=datos.hora_extravio,
         )
@@ -356,6 +358,16 @@ def consultar_reporte(
         "ubicacion_extravio": reporte.ubicacion_extravio,
         "fecha_extravio": reporte.fecha_extravio,
         "hora_extravio": reporte.hora_extravio,
+        "latitud": (
+            float(reporte.latitud)
+            if reporte.latitud is not None
+            else None
+        ),
+        "longitud": (
+            float(reporte.longitud)
+            if reporte.longitud is not None
+            else None
+        ),
         "fecha_creacion": reporte.fecha_creacion,
         "mascota": {
             "id": reporte.mascota.id,
@@ -684,6 +696,8 @@ def actualizar_reporte(
         "ubicacion_extravio",
         "fecha_extravio",
         "hora_extravio",
+        "latitud",
+        "longitud",
     }
 
     campos_mascota = {

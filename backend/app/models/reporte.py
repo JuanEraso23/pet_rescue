@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
     Time,
@@ -30,6 +31,9 @@ class Reporte(Base):
     ubicacion_extravio = Column(String(200), nullable=False)
     fecha_extravio = Column(Date, nullable=False)
     hora_extravio = Column(Time)
+    # HU18: ubicacion aproximada opcional del extravio.
+    latitud = Column(Numeric(9, 6), nullable=True)
+    longitud = Column(Numeric(9, 6), nullable=True)
     fecha_creacion = Column(
         DateTime,
         nullable=False,
