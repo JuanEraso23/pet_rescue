@@ -16,6 +16,8 @@ class Mascota(Base):
     tamano = Column(String(20), nullable=False)
     edad_aproximada = Column(Integer)
     senas_particulares = Column(Text)
+    numero_placa = Column(String(50), nullable=True)
+    numero_microchip = Column(String(100), nullable=True)
 
     def __repr__(self):
         return f"<Mascota id={self.id} nombre={self.nombre} especie={self.especie}>"

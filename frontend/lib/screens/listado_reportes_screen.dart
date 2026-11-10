@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../models/resumen_reporte.dart';
 import '../services/reporte_service.dart';
 import 'admin_denuncias_screen.dart';
+import 'admin_reportes_screen.dart';
 import 'detalle_reporte_screen.dart';
+import 'recomendaciones_screen.dart';
 import 'registro_reporte_screen.dart';
 
 class ListadoReportesScreen extends StatefulWidget {
@@ -137,6 +139,23 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     } finally {
       if (mounted) setState(() => _aplicandoFiltros = false);
     }
+  }
+
+  Future<void> _abrirAdministracion() async {
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const AdminReportesScreen()));
+
+    if (!mounted) {
+      return;
+    }
+
+    await _actualizarReportes();
+  }
+
+  // HU22: pantalla informativa local, no requiere recargar el listado.
+  void _abrirRecomendaciones() {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const RecomendacionesScreen()));
   }
 
   Future<void> _abrirRegistro() async {
@@ -785,6 +804,14 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
             },
             tooltip: 'Validar Denuncias',
             icon: const Icon(Icons.gavel_outlined),
+            tooltip: 'Recomendaciones',
+            icon: const Icon(Icons.lightbulb_outline),
+            onPressed: _abrirRecomendaciones,
+          ),
+          IconButton(
+            onPressed: _abrirAdministracion,
+            tooltip: 'Administración de reportes',
+            icon: const Icon(Icons.admin_panel_settings_outlined),
           ),
           IconButton(
             onPressed: _aplicandoFiltros ? null : _actualizarReportes,

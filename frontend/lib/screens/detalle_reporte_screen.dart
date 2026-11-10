@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -8,6 +9,8 @@ import '../models/contacto_reporte.dart';
 import '../models/fotografia_reporte.dart';
 import '../models/reporte.dart';
 import '../services/reporte_service.dart';
+import '../widgets/mapa_reporte.dart';
+import 'denunciar_reporte_screen.dart';
 import 'registro_avistamiento_screen.dart';
 import 'editar_reporte_screen.dart';
 
@@ -277,6 +280,17 @@ class _DetalleReporteScreenState extends State<DetalleReporteScreen> {
     final mes = fechaConvertida.month.toString().padLeft(2, '0');
 
     return '$dia/$mes/${fechaConvertida.year}';
+  }
+
+  // HU17: evita mostrar null o cadenas vacías en el detalle.
+  String _textoOVacio(String? valor, String alternativo) {
+    final texto = valor?.trim();
+
+    if (texto == null || texto.isEmpty) {
+      return alternativo;
+    }
+
+    return texto;
   }
 
   String _construirMensajeCompartir(DetalleReporte reporte) {
@@ -965,7 +979,39 @@ Si tienes información, consulta este reporte en Pet Rescue.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalle del reporte')),
+      appBar: AppBar(
+        title: const Text('Detalle del reporte'),
+        actions: [
+          FutureBuilder<DetalleReporte>(
+            future: _reporte,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const SizedBox.shrink();
+              }
+
+              final reporte = snapshot.data!;
+
+              return IconButton(
+                icon: const Icon(
+                  Icons.report_gmailerrorred,
+                  color: Colors.redAccent,
+                ),
+                tooltip: 'Denunciar publicación',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => DenunciarReporteScreen(
+                        reporteId: reporte.id,
+                        codigoReporte: reporte.codigo,
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
       body: FutureBuilder<DetalleReporte>(
         future: _reporte,
         builder: (context, snapshot) {
@@ -1120,6 +1166,17 @@ Si tienes información, consulta este reporte en Pet Rescue.
                       etiqueta: 'Señas particulares',
                       valor: reporte.senasParticulares ?? 'No registradas',
                     ),
+                    _FilaDato(
+                      etiqueta: 'Número de placa',
+                      valor: _textoOVacio(reporte.numeroPlaca, 'No registrada'),
+                    ),
+                    _FilaDato(
+                      etiqueta: 'Número de microchip',
+                      valor: _textoOVacio(
+                        reporte.numeroMicrochip,
+                        'No registrado',
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -1135,6 +1192,17 @@ Si tienes información, consulta este reporte en Pet Rescue.
                       etiqueta: 'Hora',
                       valor: reporte.horaExtravio ?? 'No registrada',
                     ),
+                    // HU18: mapa de solo lectura si hay coordenadas.
+                    if (reporte.latitud != null && reporte.longitud != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: MapaReporte(
+                          ubicacion: LatLng(
+                            reporte.latitud!,
+                            reporte.longitud!,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 16),

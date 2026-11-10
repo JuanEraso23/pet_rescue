@@ -168,6 +168,28 @@ class ReporteService {
     }
   }
 
+  Future<DenunciaReporte> crearDenuncia(DenunciaReporte denuncia) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/reportes/${denuncia.reporteId}/denuncias'),
+        headers: const {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode(denuncia.toJson()),
+      );
+
+      final cuerpo = _decodificarMapa(response);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return DenunciaReporte.fromJson(cuerpo);
+      }
+
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvió una respuesta inválida.');
+    }
+  }
+
   Future<FotografiaReporte> cargarFotografia({
     required int reporteId,
     required Uint8List bytes,
