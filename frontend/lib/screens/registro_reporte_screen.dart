@@ -35,6 +35,10 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
 
   final TextEditingController _senasController = TextEditingController();
 
+  final TextEditingController _placaController = TextEditingController();
+
+  final TextEditingController _microchipController = TextEditingController();
+
   final TextEditingController _ubicacionController = TextEditingController();
 
   final TextEditingController _contactoController = TextEditingController();
@@ -61,6 +65,8 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
     _colorController.dispose();
     _edadController.dispose();
     _senasController.dispose();
+    _placaController.dispose();
+    _microchipController.dispose();
     _ubicacionController.dispose();
     _contactoController.dispose();
 
@@ -191,6 +197,8 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
       'tamano': _tamano,
       'edad_aproximada': _edadOpcional(),
       'senas_particulares': _textoOpcional(_senasController.text),
+      'numero_placa': _textoOpcional(_placaController.text),
+      'numero_microchip': _textoOpcional(_microchipController.text),
       'ubicacion_extravio': _ubicacionController.text.trim(),
       'fecha_extravio': _formatearFecha(_fechaExtravio!),
       'hora_extravio': _formatearHora(_horaExtravio),
@@ -720,6 +728,26 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
                   hintText: 'Marcas, cicatrices o accesorios',
                   prefixIcon: Icon(Icons.search),
                   alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _placaController,
+                maxLength: 50,
+                decoration: const InputDecoration(
+                  labelText: 'Número de placa',
+                  hintText: 'Opcional',
+                  prefixIcon: Icon(Icons.badge_outlined),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _microchipController,
+                maxLength: 100,
+                decoration: const InputDecoration(
+                  labelText: 'Número de microchip',
+                  hintText: 'Opcional',
+                  prefixIcon: Icon(Icons.memory),
                 ),
               ),
               const SizedBox(height: 28),

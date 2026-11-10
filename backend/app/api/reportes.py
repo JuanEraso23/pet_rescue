@@ -4,6 +4,7 @@ import re
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database.connection import get_db
@@ -40,6 +41,18 @@ def generar_codigo(db: Session) -> str:
     return f"PR-{consecutivo:04d}"
 
 
+# HU17 - El indice unico parcial de numero_microchip produce
+# IntegrityError cuando el microchip ya esta registrado.
+MENSAJE_MICROCHIP_DUPLICADO = (
+    "El numero de microchip ya esta registrado "
+    "en otra mascota."
+)
+
+
+def es_microchip_duplicado(error: IntegrityError) -> bool:
+    return "uq_mascotas_numero_microchip" in str(error.orig)
+
+
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
@@ -56,6 +69,8 @@ def crear_reporte(
         tamano=datos.tamano,
         edad_aproximada=datos.edad_aproximada,
         senas_particulares=datos.senas_particulares,
+        numero_placa=datos.numero_placa,
+        numero_microchip=datos.numero_microchip,
     )
 
     try:
@@ -85,6 +100,20 @@ def crear_reporte(
             "fecha_creacion": reporte.fecha_creacion,
             "mensaje": "Reporte registrado correctamente",
         }
+
+    except IntegrityError as error:
+        db.rollback()
+
+        if not es_microchip_duplicado(error):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="No fue posible guardar el reporte.",
+            ) from error
+
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=MENSAJE_MICROCHIP_DUPLICADO,
+        ) from error
 
     except Exception as error:
         db.rollback()
@@ -335,6 +364,8 @@ def consultar_reporte(
             "senas_particulares": (
                 reporte.mascota.senas_particulares
             ),
+            "numero_placa": reporte.mascota.numero_placa,
+            "numero_microchip": reporte.mascota.numero_microchip,
         },
     }
 
@@ -657,6 +688,8 @@ def actualizar_reporte(
         "tamano",
         "edad_aproximada",
         "senas_particulares",
+        "numero_placa",
+        "numero_microchip",
     }
 
     cambios = datos.model_dump(
@@ -695,6 +728,20 @@ def actualizar_reporte(
                 "Reporte actualizado correctamente."
             ),
         }
+
+    except IntegrityError as error:
+        db.rollback()
+
+        if not es_microchip_duplicado(error):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="No fue posible guardar el reporte.",
+            ) from error
+
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=MENSAJE_MICROCHIP_DUPLICADO,
+        ) from error
 
     except Exception as error:
         db.rollback()
