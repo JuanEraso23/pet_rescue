@@ -8,6 +8,7 @@ import '../models/avistamiento.dart';
 import '../models/contacto_reporte.dart';
 import '../models/denuncia_reporte.dart';
 import '../models/fotografia_reporte.dart';
+import '../models/notificacion_coincidencia.dart';
 import '../models/reporte.dart';
 import '../models/resumen_reporte.dart';
 
@@ -102,6 +103,13 @@ class ReporteService {
     }
   }
 
+  Future<List<NotificacionCoincidencia>> listarNotificaciones(
+    int reporteId,
+  ) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/reportes/$reporteId/notificaciones'),
+      );
   Future<List<DenunciaReporte>> listarDenunciasAdmin({
     String? estado,
   }) async {
@@ -123,7 +131,7 @@ class ReporteService {
 
         return contenido
             .map(
-              (elemento) => DenunciaReporte.fromJson(
+z              (elemento) => NotificacionCoincidencia.fromJson(
                 elemento as Map<String, dynamic>,
               ),
             )
@@ -139,6 +147,15 @@ class ReporteService {
     }
   }
 
+  Future<void> marcarNotificacionLeida(
+    int reporteId,
+    int notificacionId,
+  ) async {
+    try {
+      final response = await http.patch(
+        Uri.parse(
+          '$baseUrl/reportes/$reporteId/notificaciones/$notificacionId/leida',
+        ),
   Future<void> revisarDenuncia({
     required int denunciaId,
     required String estado,
