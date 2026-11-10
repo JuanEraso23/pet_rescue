@@ -4,6 +4,22 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+def limpiar_identificacion(valor):
+    """HU17: recorta espacios y convierte cadenas vacias en None."""
+    if isinstance(valor, str):
+        valor_limpio = valor.strip()
+        return valor_limpio or None
+    return valor
+
+
+def validar_par_coordenadas(latitud, longitud):
+    """HU18: latitud y longitud se envian juntas o ambas nulas."""
+    if (latitud is None) != (longitud is None):
+        raise ValueError(
+            "La latitud y la longitud deben enviarse juntas."
+        )
+
+
 class ReporteCreate(BaseModel):
     titulo: str = Field(min_length=3, max_length=200)
     descripcion: str = Field(min_length=10)
@@ -14,9 +30,13 @@ class ReporteCreate(BaseModel):
     tamano: Literal["Pequeño", "Mediano", "Grande"]
     edad_aproximada: int | None = Field(default=None, ge=0)
     senas_particulares: str | None = None
+    numero_placa: str | None = Field(default=None, max_length=50)
+    numero_microchip: str | None = Field(default=None, max_length=100)
     ubicacion_extravio: str = Field(min_length=3, max_length=200)
     fecha_extravio: date
     hora_extravio: time | None = None
+    latitud: float | None = Field(default=None, ge=-90, le=90)
+    longitud: float | None = Field(default=None, ge=-180, le=180)
 
     @field_validator("titulo", "descripcion", "color", "ubicacion_extravio")
     @classmethod
@@ -26,12 +46,22 @@ class ReporteCreate(BaseModel):
             raise ValueError("El campo no puede contener solo espacios.")
         return valor_limpio
 
+    @field_validator("numero_placa", "numero_microchip", mode="before")
+    @classmethod
+    def limpiar_identificacion_create(cls, valor):
+        return limpiar_identificacion(valor)
+
     @field_validator("fecha_extravio")
     @classmethod
     def validar_fecha(cls, valor: date) -> date:
         if valor > date.today():
             raise ValueError("La fecha del extravío no puede ser futura.")
         return valor
+
+    @model_validator(mode="after")
+    def validar_coordenadas(self):
+        validar_par_coordenadas(self.latitud, self.longitud)
+        return self
 
 
 class ReporteOut(BaseModel):
@@ -75,9 +105,13 @@ class ReporteUpdate(BaseModel):
     ] | None = None
     edad_aproximada: int | None = Field(default=None, ge=0)
     senas_particulares: str | None = None
+    numero_placa: str | None = Field(default=None, max_length=50)
+    numero_microchip: str | None = Field(default=None, max_length=100)
     ubicacion_extravio: str | None = Field(default=None, min_length=3, max_length=200)
     fecha_extravio: date | None = None
     hora_extravio: time | None = None
+    latitud: float | None = Field(default=None, ge=-90, le=90)
+    longitud: float | None = Field(default=None, ge=-180, le=180)
 
     @field_validator(
         "titulo",
@@ -106,6 +140,11 @@ class ReporteUpdate(BaseModel):
             return valor.strip()
         return valor
 
+    @field_validator("numero_placa", "numero_microchip", mode="before")
+    @classmethod
+    def limpiar_identificacion_update(cls, valor):
+        return limpiar_identificacion(valor)
+
     @field_validator("fecha_extravio")
     @classmethod
     def validar_fecha_update(cls, valor):
@@ -117,4 +156,12 @@ class ReporteUpdate(BaseModel):
     def validar_al_menos_un_cambio(self):
         if not self.model_fields_set:
             raise ValueError("Debes enviar al menos un campo para actualizar.")
+
+        enviadas = {"latitud", "longitud"} & self.model_fields_set
+        if len(enviadas) == 1:
+            raise ValueError(
+                "La latitud y la longitud deben enviarse juntas."
+            )
+        if enviadas:
+            validar_par_coordenadas(self.latitud, self.longitud)
         return self

@@ -2,8 +2,10 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../services/reporte_service.dart';
+import '../widgets/mapa_reporte.dart';
 import 'confirmacion_reporte_screen.dart';
 
 class RegistroReporteScreen extends StatefulWidget {
@@ -35,7 +37,14 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
 
   final TextEditingController _senasController = TextEditingController();
 
+  final TextEditingController _placaController = TextEditingController();
+
+  final TextEditingController _microchipController = TextEditingController();
+
   final TextEditingController _ubicacionController = TextEditingController();
+
+  // HU18: zona opcional elegida en el mapa.
+  LatLng? _ubicacionMapa;
 
   final TextEditingController _contactoController = TextEditingController();
 
@@ -61,6 +70,8 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
     _colorController.dispose();
     _edadController.dispose();
     _senasController.dispose();
+    _placaController.dispose();
+    _microchipController.dispose();
     _ubicacionController.dispose();
     _contactoController.dispose();
 
@@ -168,7 +179,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
     }
 
     if (_tamano == null) {
-      _mostrarMensaje('Selecciona el tamaÃ±o.');
+      _mostrarMensaje('Selecciona el tamaño.');
       return;
     }
 
@@ -191,9 +202,13 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
       'tamano': _tamano,
       'edad_aproximada': _edadOpcional(),
       'senas_particulares': _textoOpcional(_senasController.text),
+      'numero_placa': _textoOpcional(_placaController.text),
+      'numero_microchip': _textoOpcional(_microchipController.text),
       'ubicacion_extravio': _ubicacionController.text.trim(),
       'fecha_extravio': _formatearFecha(_fechaExtravio!),
       'hora_extravio': _formatearHora(_horaExtravio),
+      'latitud': _ubicacionMapa?.latitude,
+      'longitud': _ubicacionMapa?.longitude,
     };
 
     try {
@@ -464,7 +479,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
         const SizedBox(height: 8),
         const Text(
           'Formatos permitidos: JPG, PNG o WebP. '
-          'TamaÃ±o maximo: 5 MB.',
+          'Tamaño maximo: 5 MB.',
           style: TextStyle(color: Color(0xFF667781), fontSize: 13),
         ),
       ],
@@ -679,10 +694,10 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
               DropdownButtonFormField<String>(
                 initialValue: _tamano,
                 decoration: const InputDecoration(
-                  labelText: 'TamaÃ±o',
+                  labelText: 'Tamaño',
                   prefixIcon: Icon(Icons.straighten),
                 ),
-                items: const ['PequeÃ±o', 'Mediano', 'Grande'].map((tamano) {
+                items: const ['Pequeño', 'Mediano', 'Grande'].map((tamano) {
                   return DropdownMenuItem(value: tamano, child: Text(tamano));
                 }).toList(),
                 onChanged: _cargando
@@ -694,7 +709,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
                       },
                 validator: (valor) {
                   if (valor == null) {
-                    return 'Selecciona el tamaÃ±o.';
+                    return 'Selecciona el tamaño.';
                   }
 
                   return null;
@@ -716,10 +731,30 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
                 controller: _senasController,
                 maxLines: 3,
                 decoration: const InputDecoration(
-                  labelText: 'SeÃ±as particulares',
+                  labelText: 'Señas particulares',
                   hintText: 'Marcas, cicatrices o accesorios',
                   prefixIcon: Icon(Icons.search),
                   alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _placaController,
+                maxLength: 50,
+                decoration: const InputDecoration(
+                  labelText: 'Número de placa',
+                  hintText: 'Opcional',
+                  prefixIcon: Icon(Icons.badge_outlined),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _microchipController,
+                maxLength: 100,
+                decoration: const InputDecoration(
+                  labelText: 'Número de microchip',
+                  hintText: 'Opcional',
+                  prefixIcon: Icon(Icons.memory),
                 ),
               ),
               const SizedBox(height: 28),
@@ -745,6 +780,12 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
                 validator: (valor) {
                   return _validarTexto(valor, 'La ubicacion', 3);
                 },
+              ),
+              const SizedBox(height: 12),
+              CampoUbicacionMapa(
+                ubicacion: _ubicacionMapa,
+                habilitado: !_cargando,
+                onChanged: (punto) => setState(() => _ubicacionMapa = punto),
               ),
               const SizedBox(height: 12),
               Card(

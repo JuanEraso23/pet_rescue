@@ -4,12 +4,14 @@ import re
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database.connection import get_db
 from app.models.contacto_reporte import ContactoReporte
 from app.models.mascota import Mascota
 from app.models.reporte import Reporte
+from app.models.denuncia_reporte import DenunciaReporte
 from app.schemas.contacto_reporte import (
     ContactoCreate,
     ContactoOut,
@@ -20,6 +22,11 @@ from app.schemas.estado_reporte import (
     EstadoReporteUpdate,
 )
 from app.schemas.reporte import ReporteCreate, ReporteUpdate
+from app.schemas.denuncia_reporte import (
+    DenunciaCreate,
+    DenunciaOut,
+    DenunciaResumen,
+)
 
 
 router = APIRouter(
@@ -40,6 +47,18 @@ def generar_codigo(db: Session) -> str:
     return f"PR-{consecutivo:04d}"
 
 
+# HU17 - El indice unico parcial de numero_microchip produce
+# IntegrityError cuando el microchip ya esta registrado.
+MENSAJE_MICROCHIP_DUPLICADO = (
+    "El numero de microchip ya esta registrado "
+    "en otra mascota."
+)
+
+
+def es_microchip_duplicado(error: IntegrityError) -> bool:
+    return "uq_mascotas_numero_microchip" in str(error.orig)
+
+
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
@@ -56,6 +75,8 @@ def crear_reporte(
         tamano=datos.tamano,
         edad_aproximada=datos.edad_aproximada,
         senas_particulares=datos.senas_particulares,
+        numero_placa=datos.numero_placa,
+        numero_microchip=datos.numero_microchip,
     )
 
     try:
@@ -70,6 +91,8 @@ def crear_reporte(
             tipo="Perdida",
             estado="Activo",
             ubicacion_extravio=datos.ubicacion_extravio,
+            latitud=datos.latitud,
+            longitud=datos.longitud,
             fecha_extravio=datos.fecha_extravio,
             hora_extravio=datos.hora_extravio,
         )
@@ -85,6 +108,20 @@ def crear_reporte(
             "fecha_creacion": reporte.fecha_creacion,
             "mensaje": "Reporte registrado correctamente",
         }
+
+    except IntegrityError as error:
+        db.rollback()
+
+        if not es_microchip_duplicado(error):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="No fue posible guardar el reporte.",
+            ) from error
+
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=MENSAJE_MICROCHIP_DUPLICADO,
+        ) from error
 
     except Exception as error:
         db.rollback()
@@ -321,6 +358,16 @@ def consultar_reporte(
         "ubicacion_extravio": reporte.ubicacion_extravio,
         "fecha_extravio": reporte.fecha_extravio,
         "hora_extravio": reporte.hora_extravio,
+        "latitud": (
+            float(reporte.latitud)
+            if reporte.latitud is not None
+            else None
+        ),
+        "longitud": (
+            float(reporte.longitud)
+            if reporte.longitud is not None
+            else None
+        ),
         "fecha_creacion": reporte.fecha_creacion,
         "mascota": {
             "id": reporte.mascota.id,
@@ -335,6 +382,8 @@ def consultar_reporte(
             "senas_particulares": (
                 reporte.mascota.senas_particulares
             ),
+            "numero_placa": reporte.mascota.numero_placa,
+            "numero_microchip": reporte.mascota.numero_microchip,
         },
     }
 
@@ -647,6 +696,8 @@ def actualizar_reporte(
         "ubicacion_extravio",
         "fecha_extravio",
         "hora_extravio",
+        "latitud",
+        "longitud",
     }
 
     campos_mascota = {
@@ -657,6 +708,8 @@ def actualizar_reporte(
         "tamano",
         "edad_aproximada",
         "senas_particulares",
+        "numero_placa",
+        "numero_microchip",
     }
 
     cambios = datos.model_dump(
@@ -696,6 +749,20 @@ def actualizar_reporte(
             ),
         }
 
+    except IntegrityError as error:
+        db.rollback()
+
+        if not es_microchip_duplicado(error):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="No fue posible guardar el reporte.",
+            ) from error
+
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=MENSAJE_MICROCHIP_DUPLICADO,
+        ) from error
+
     except Exception as error:
         db.rollback()
 
@@ -706,3 +773,78 @@ def actualizar_reporte(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="No fue posible actualizar el reporte.",
         ) from error
+
+
+# ============================================================
+# HU20 - Denunciar publicaciones
+# ============================================================
+
+
+@router.post(
+    "/{reporte_id}/denuncias",
+    response_model=DenunciaOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def crear_denuncia(
+    reporte_id: int,
+    datos: DenunciaCreate,
+    db: Session = Depends(get_db),
+):
+    # 1. Verificar que el reporte existe
+    reporte = db.get(Reporte, reporte_id)
+    if reporte is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reporte no encontrado.",
+        )
+
+    # 2. Crear la denuncia
+    denuncia = DenunciaReporte(
+        reporte_id=reporte_id,
+        motivo=datos.motivo,
+        descripcion=datos.descripcion,
+        estado="Pendiente",
+    )
+
+    try:
+        db.add(denuncia)
+        db.commit()
+        db.refresh(denuncia)
+        return denuncia
+    except Exception as error:
+        db.rollback()
+        print("ERROR AL GUARDAR DENUNCIA:")
+        print(repr(error))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="No fue posible registrar la denuncia.",
+        ) from error
+
+
+@router.get(
+    "/{reporte_id}/denuncias/resumen",
+    response_model=DenunciaResumen,
+)
+def consultar_resumen_denuncias(
+    reporte_id: int,
+    db: Session = Depends(get_db),
+):
+    # 1. Verificar que el reporte existe
+    reporte = db.get(Reporte, reporte_id)
+    if reporte is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reporte no encontrado.",
+        )
+
+    # 2. Contar denuncias totales y pendientes
+    total = db.query(DenunciaReporte).filter(DenunciaReporte.reporte_id == reporte_id).count()
+    pendientes = db.query(DenunciaReporte).filter(
+        DenunciaReporte.reporte_id == reporte_id,
+        DenunciaReporte.estado == "Pendiente"
+    ).count()
+
+    return {
+        "total": total,
+        "pendientes": pendientes,
+    }

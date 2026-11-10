@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
     Time,
@@ -30,10 +31,70 @@ class Reporte(Base):
     ubicacion_extravio = Column(String(200), nullable=False)
     fecha_extravio = Column(Date, nullable=False)
     hora_extravio = Column(Time)
-    fecha_creacion = Column(DateTime, nullable=False, server_default=func.now())
+    # HU18: ubicacion aproximada opcional del extravio.
+    latitud = Column(Numeric(9, 6), nullable=True)
+    longitud = Column(Numeric(9, 6), nullable=True)
+    fecha_creacion = Column(
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    estado_revision = Column(
+        String(20),
+        nullable=False,
+        default="Pendiente",
+        server_default="Pendiente",
+        index=True,
+    )
+
+    fecha_revision = Column(
+        DateTime,
+        nullable=True,
+    )
+
+    observacion_revision = Column(
+        Text,
+        nullable=True,
+    )
+
+    estado_gestion = Column(
+        String(20),
+        nullable=False,
+        default="Vigente",
+        server_default="Vigente",
+        index=True,
+    )
+
+    reporte_principal_id = Column(
+        Integer,
+        ForeignKey(
+            "reportes.id",
+            ondelete="RESTRICT",
+        ),
+        nullable=True,
+        index=True,
+    )
+
+    motivo_gestion = Column(
+        Text,
+        nullable=True,
+    )
+
+    fecha_gestion = Column(
+        DateTime,
+        nullable=True,
+    )
 
     # Relación con Mascota
     mascota = relationship("Mascota", backref="reportes")
+
+    reporte_principal = relationship(
+        "Reporte",
+        remote_side=[id],
+        foreign_keys=[reporte_principal_id],
+        backref="reportes_duplicados",
+    )
 
     # Relación 1 a 1 con Contacto (HU5)
     contacto = relationship(

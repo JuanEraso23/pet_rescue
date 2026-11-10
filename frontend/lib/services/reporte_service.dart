@@ -6,6 +6,7 @@ import 'package:http_parser/http_parser.dart';
 
 import '../models/avistamiento.dart';
 import '../models/contacto_reporte.dart';
+import '../models/denuncia_reporte.dart';
 import '../models/fotografia_reporte.dart';
 import '../models/notificacion_coincidencia.dart';
 import '../models/reporte.dart';
@@ -109,6 +110,17 @@ class ReporteService {
       final response = await http.get(
         Uri.parse('$baseUrl/reportes/$reporteId/notificaciones'),
       );
+  Future<List<DenunciaReporte>> listarDenunciasAdmin({
+    String? estado,
+  }) async {
+    try {
+      final filtro = estado?.trim();
+      final uri = Uri.parse('$baseUrl/admin/denuncias').replace(
+        queryParameters: filtro == null || filtro.isEmpty || filtro == 'Todas'
+            ? null
+            : {'estado': filtro},
+      );
+      final response = await http.get(uri);
 
       if (response.statusCode == 200) {
         final contenido = jsonDecode(utf8.decode(response.bodyBytes));
@@ -119,7 +131,7 @@ class ReporteService {
 
         return contenido
             .map(
-              (elemento) => NotificacionCoincidencia.fromJson(
+z              (elemento) => NotificacionCoincidencia.fromJson(
                 elemento as Map<String, dynamic>,
               ),
             )
@@ -144,6 +156,20 @@ class ReporteService {
         Uri.parse(
           '$baseUrl/reportes/$reporteId/notificaciones/$notificacionId/leida',
         ),
+  Future<void> revisarDenuncia({
+    required int denunciaId,
+    required String estado,
+    String? observacion,
+  }) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/admin/denuncias/$denunciaId'),
+        headers: const {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({
+          'estado': estado,
+          if (observacion != null && observacion.isNotEmpty)
+            'observacion_admin': observacion,
+        }),
       );
 
       if (response.statusCode == 200) {
@@ -151,6 +177,28 @@ class ReporteService {
       }
 
       final cuerpo = _decodificarMapa(response);
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvió una respuesta inválida.');
+    }
+  }
+
+  Future<DenunciaReporte> crearDenuncia(DenunciaReporte denuncia) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/reportes/${denuncia.reporteId}/denuncias'),
+        headers: const {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode(denuncia.toJson()),
+      );
+
+      final cuerpo = _decodificarMapa(response);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return DenunciaReporte.fromJson(cuerpo);
+      }
+
       throw Exception(_obtenerMensajeError(cuerpo));
     } on http.ClientException {
       throw Exception('No fue posible conectarse con el servidor.');

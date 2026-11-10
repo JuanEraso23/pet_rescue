@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../models/reporte.dart';
 import '../services/reporte_service.dart';
+import '../widgets/mapa_reporte.dart';
 
 class EditarReporteScreen extends StatefulWidget {
   final DetalleReporte reporte;
@@ -26,6 +28,8 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
   late final TextEditingController _colorController;
   late final TextEditingController _edadController;
   late final TextEditingController _senasController;
+  late final TextEditingController _placaController;
+  late final TextEditingController _microchipController;
   late final TextEditingController _ubicacionController;
 
   late String _especie;
@@ -34,6 +38,9 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
   TimeOfDay? _horaExtravio;
 
   bool _guardando = false;
+
+  // HU18: ubicación en el mapa; null si el reporte no tiene coordenadas.
+  LatLng? _ubicacionMapa;
 
   static const List<String> _especies = [
     'Perro',
@@ -71,9 +78,23 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
       text: widget.reporte.senasParticulares ?? '',
     );
 
+    _placaController = TextEditingController(
+      text: widget.reporte.numeroPlaca ?? '',
+    );
+
+    _microchipController = TextEditingController(
+      text: widget.reporte.numeroMicrochip ?? '',
+    );
+
     _ubicacionController = TextEditingController(
       text: widget.reporte.ubicacionExtravio,
     );
+
+    final latitud = widget.reporte.latitud;
+    final longitud = widget.reporte.longitud;
+    _ubicacionMapa = latitud != null && longitud != null
+        ? LatLng(latitud, longitud)
+        : null;
 
     _especie = widget.reporte.especie;
     _tamano = widget.reporte.tamano;
@@ -93,6 +114,8 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
     _colorController.dispose();
     _edadController.dispose();
     _senasController.dispose();
+    _placaController.dispose();
+    _microchipController.dispose();
     _ubicacionController.dispose();
 
     super.dispose();
@@ -307,10 +330,32 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
       cambios['senas_particulares'] = senas;
     }
 
+    final placa = _textoOpcional(_placaController.text);
+
+    if (placa != widget.reporte.numeroPlaca) {
+      cambios['numero_placa'] = placa;
+    }
+
+    final microchip = _textoOpcional(_microchipController.text);
+
+    if (microchip != widget.reporte.numeroMicrochip) {
+      cambios['numero_microchip'] = microchip;
+    }
+
     final ubicacion = _ubicacionController.text.trim();
 
     if (ubicacion != widget.reporte.ubicacionExtravio) {
       cambios['ubicacion_extravio'] = ubicacion;
+    }
+
+    // HU18: las coordenadas se envían siempre juntas.
+    final latitud = _ubicacionMapa?.latitude;
+    final longitud = _ubicacionMapa?.longitude;
+
+    if (latitud != widget.reporte.latitud ||
+        longitud != widget.reporte.longitud) {
+      cambios['latitud'] = latitud;
+      cambios['longitud'] = longitud;
     }
 
     final fecha = _formatearFecha(_fechaExtravio);
@@ -617,6 +662,26 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
                 alignLabelWithHint: true,
               ),
             ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _placaController,
+              enabled: !_guardando,
+              maxLength: 50,
+              decoration: const InputDecoration(
+                labelText: 'Número de placa (opcional)',
+                prefixIcon: Icon(Icons.badge_outlined),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _microchipController,
+              enabled: !_guardando,
+              maxLength: 100,
+              decoration: const InputDecoration(
+                labelText: 'Número de microchip (opcional)',
+                prefixIcon: Icon(Icons.memory_outlined),
+              ),
+            ),
             const SizedBox(height: 28),
             _construirEncabezadoSeccion(
               'Información del extravío',
@@ -635,6 +700,12 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
               validator: (valor) {
                 return _validarTexto(valor, 'La ubicación', 3);
               },
+            ),
+            const SizedBox(height: 10),
+            CampoUbicacionMapa(
+              ubicacion: _ubicacionMapa,
+              habilitado: !_guardando,
+              onChanged: (punto) => setState(() => _ubicacionMapa = punto),
             ),
             const SizedBox(height: 10),
             Card(
