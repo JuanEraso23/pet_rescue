@@ -117,19 +117,19 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
       const extensionesPermitidas = {'jpg', 'jpeg', 'png', 'webp'};
 
       if (extension == null || !extensionesPermitidas.contains(extension)) {
-        _mostrarMensaje('Selecciona una fotografia JPG, PNG o WebP.');
+        _mostrarMensaje('Selecciona una fotografía JPG, PNG o WebP.');
         return;
       }
 
       final Uint8List bytes = await archivo.readAsBytes();
 
       if (bytes.isEmpty) {
-        _mostrarMensaje('La fotografia seleccionada esta vacia.');
+        _mostrarMensaje('La fotografía seleccionada está vacía.');
         return;
       }
 
       if (bytes.length > _tamanoMaximo) {
-        _mostrarMensaje('La fotografia no puede superar los 5 MB.');
+        _mostrarMensaje('La fotografía no puede superar los 5 MB.');
         return;
       }
 
@@ -147,7 +147,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
         return;
       }
 
-      _mostrarMensaje('No fue posible seleccionar la fotografia.');
+      _mostrarMensaje('No fue posible seleccionar la fotografía.');
     }
   }
 
@@ -179,7 +179,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
     }
 
     if (_fechaExtravio == null) {
-      _mostrarMensaje('Selecciona la fecha del extravio.');
+      _mostrarMensaje('Selecciona la fecha del extravío.');
       return;
     }
 
@@ -310,7 +310,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
     }
 
     if (texto.length < minimo) {
-      return '$nombre debe tener minimo '
+      return '$nombre debe tener mínimo '
           '$minimo caracteres.';
     }
 
@@ -327,7 +327,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
     final edad = int.tryParse(texto);
 
     if (edad == null) {
-      return 'La edad debe ser un numero entero.';
+      return 'La edad debe ser un número entero.';
     }
 
     if (edad < 0) {
@@ -351,12 +351,12 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
           .replaceAll('+', '');
 
       if (!RegExp(r'^\d+$').hasMatch(telefonoLimpio)) {
-        return 'El telefono solo puede contener digitos, espacios, '
+        return 'El teléfono solo puede contener dígitos, espacios, '
             'guiones o el signo mas.';
       }
 
       if (telefonoLimpio.length < 7 || telefonoLimpio.length > 15) {
-        return 'El telefono debe tener entre 7 y 15 digitos.';
+        return 'El teléfono debe tener entre 7 y 15 dígitos.';
       }
     }
 
@@ -366,7 +366,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
       ).hasMatch(contacto);
 
       if (!correoValido) {
-        return 'El correo electronico no tiene un formato valido.';
+        return 'El correo electrónico no tiene un formato válido.';
       }
     }
 
@@ -378,7 +378,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Fotografia reciente',
+          'Fotografía reciente',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
             color: const Color(0xFF183B4E),
@@ -386,8 +386,8 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Agrega una fotografia para facilitar la '
-          'identificacion de la mascota.',
+          'Agrega una fotografía para facilitar la '
+          'identificación de la mascota.',
         ),
         const SizedBox(height: 16),
         if (_fotografiaBytes == null)
@@ -396,7 +396,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
             child: OutlinedButton.icon(
               onPressed: _cargando ? null : _seleccionarFotografia,
               icon: const Icon(Icons.add_photo_alternate),
-              label: const Text('Seleccionar fotografia'),
+              label: const Text('Seleccionar fotografía'),
             ),
           )
         else
@@ -440,7 +440,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _nombreFotografia ?? 'Fotografia',
+                              _nombreFotografia ?? 'Fotografía',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -457,7 +457,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
                       ),
                       IconButton(
                         onPressed: _cargando ? null : _retirarFotografia,
-                        tooltip: 'Retirar fotografia',
+                        tooltip: 'Retirar fotografía',
                         icon: const Icon(
                           Icons.delete_outline,
                           color: Colors.redAccent,
@@ -472,7 +472,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
         const SizedBox(height: 8),
         const Text(
           'Formatos permitidos: JPG, PNG o WebP. '
-          'Tamaño maximo: 5 MB.',
+          'Tamaño máximo: 5 MB.',
           style: TextStyle(color: Color(0xFF667781), fontSize: 13),
         ),
       ],
@@ -492,7 +492,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Ingresa un telefono o correo para que puedan '
+          'Ingresa un teléfono o correo para que puedan '
           'comunicarse contigo.',
         ),
         const SizedBox(height: 16),
@@ -503,7 +503,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
             prefixIcon: Icon(Icons.contact_phone),
           ),
           items: const [
-            DropdownMenuItem(value: 'Telefono', child: Text('Telefono')),
+            DropdownMenuItem(value: 'Telefono', child: Text('Teléfono')),
             DropdownMenuItem(value: 'Correo', child: Text('Correo')),
           ],
           onChanged: _cargando
@@ -531,8 +531,8 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
               : TextInputType.emailAddress,
           decoration: InputDecoration(
             labelText: _tipoContacto == 'Correo'
-                ? 'Correo electronico'
-                : 'Numero telefonico',
+                ? 'Correo electrónico'
+                : 'Número telefónico',
             hintText: _tipoContacto == 'Correo'
                 ? 'ejemplo@correo.com'
                 : '300 123 4567',
@@ -547,10 +547,10 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
         const SizedBox(height: 8),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Mostrar publicamente'),
+          title: const Text('Mostrar públicamente'),
           subtitle: Text(
             _mostrarPublicamente
-                ? 'El contacto aparecera en el detalle del reporte.'
+                ? 'El contacto aparecerá en el detalle del reporte.'
                 : 'El valor se mostrara como Contacto privado.',
           ),
           value: _mostrarPublicamente,
@@ -590,19 +590,19 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Completa la informacion para '
+                'Completa la información para '
                 'publicar el reporte.',
               ),
               const SizedBox(height: 24),
               TextFormField(
                 controller: _tituloController,
                 decoration: const InputDecoration(
-                  labelText: 'Titulo del reporte',
-                  hintText: 'Ejemplo: Max se perdio',
+                  labelText: 'Título del reporte',
+                  hintText: 'Ejemplo: Max se perdió',
                   prefixIcon: Icon(Icons.title),
                 ),
                 validator: (valor) {
-                  return _validarTexto(valor, 'El titulo', 3);
+                  return _validarTexto(valor, 'El título', 3);
                 },
               ),
               const SizedBox(height: 16),
@@ -610,18 +610,18 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
                 controller: _descripcionController,
                 maxLines: 4,
                 decoration: const InputDecoration(
-                  labelText: 'Descripcion',
+                  labelText: 'Descripción',
                   hintText: 'Describe brevemente lo ocurrido',
                   prefixIcon: Icon(Icons.description),
                   alignLabelWithHint: true,
                 ),
                 validator: (valor) {
-                  return _validarTexto(valor, 'La descripcion', 10);
+                  return _validarTexto(valor, 'La descripción', 10);
                 },
               ),
               const SizedBox(height: 28),
               Text(
-                'Caracteristicas de la mascota',
+                'Características de la mascota',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFF183B4E),
@@ -756,7 +756,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
               _construirSeccionContacto(),
               const SizedBox(height: 28),
               Text(
-                'Informacion del extravio',
+                'Información del extravío',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFF183B4E),
@@ -766,19 +766,19 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
               TextFormField(
                 controller: _ubicacionController,
                 decoration: const InputDecoration(
-                  labelText: 'Ubicacion aproximada',
+                  labelText: 'Ubicación aproximada',
                   hintText: 'Ejemplo: Sector centro',
                   prefixIcon: Icon(Icons.location_on),
                 ),
                 validator: (valor) {
-                  return _validarTexto(valor, 'La ubicacion', 3);
+                  return _validarTexto(valor, 'La ubicación', 3);
                 },
               ),
               const SizedBox(height: 12),
               Card(
                 child: ListTile(
                   leading: const Icon(Icons.calendar_month),
-                  title: const Text('Fecha del extravio'),
+                  title: const Text('Fecha del extravío'),
                   subtitle: Text(
                     _fechaExtravio == null
                         ? 'Seleccionar fecha'
