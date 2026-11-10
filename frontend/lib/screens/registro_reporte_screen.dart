@@ -174,7 +174,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
     }
 
     if (_tamano == null) {
-      _mostrarMensaje('Selecciona el tamaÃ±o.');
+      _mostrarMensaje('Selecciona el tamaño.');
       return;
     }
 
@@ -472,7 +472,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
         const SizedBox(height: 8),
         const Text(
           'Formatos permitidos: JPG, PNG o WebP. '
-          'TamaÃ±o maximo: 5 MB.',
+          'Tamaño maximo: 5 MB.',
           style: TextStyle(color: Color(0xFF667781), fontSize: 13),
         ),
       ],
@@ -687,10 +687,10 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
               DropdownButtonFormField<String>(
                 initialValue: _tamano,
                 decoration: const InputDecoration(
-                  labelText: 'TamaÃ±o',
+                  labelText: 'Tamaño',
                   prefixIcon: Icon(Icons.straighten),
                 ),
-                items: const ['PequeÃ±o', 'Mediano', 'Grande'].map((tamano) {
+                items: const ['Pequeño', 'Mediano', 'Grande'].map((tamano) {
                   return DropdownMenuItem(value: tamano, child: Text(tamano));
                 }).toList(),
                 onChanged: _cargando
@@ -702,7 +702,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
                       },
                 validator: (valor) {
                   if (valor == null) {
-                    return 'Selecciona el tamaÃ±o.';
+                    return 'Selecciona el tamaño.';
                   }
 
                   return null;
@@ -724,7 +724,7 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
                 controller: _senasController,
                 maxLines: 3,
                 decoration: const InputDecoration(
-                  labelText: 'SeÃ±as particulares',
+                  labelText: 'Señas particulares',
                   hintText: 'Marcas, cicatrices o accesorios',
                   prefixIcon: Icon(Icons.search),
                   alignLabelWithHint: true,
