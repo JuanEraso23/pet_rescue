@@ -10,6 +10,7 @@ from app.api.admin_reportes import router as admin_reportes_router
 from app.api.avistamientos import router as avistamientos_router
 from app.api.fotografias import router as fotografias_router
 from app.api.reportes import router as reportes_router
+from app.api.admin_denuncias import router as admin_denuncias_router
 from app.database.connection import get_db
 
 
@@ -35,6 +36,7 @@ app.include_router(admin_reportes_router)
 app.include_router(reportes_router)
 app.include_router(fotografias_router)
 app.include_router(avistamientos_router)
+app.include_router(admin_denuncias_router)
 
 
 app.mount(
