@@ -797,16 +797,16 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const AdminDenunciasScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const AdminDenunciasScreen()),
               );
             },
             tooltip: 'Validar Denuncias',
             icon: const Icon(Icons.gavel_outlined),
+          ),
+          IconButton(
+            onPressed: _abrirRecomendaciones,
             tooltip: 'Recomendaciones',
             icon: const Icon(Icons.lightbulb_outline),
-            onPressed: _abrirRecomendaciones,
           ),
           IconButton(
             onPressed: _abrirAdministracion,
