@@ -54,8 +54,43 @@ class Reporte(Base):
         nullable=True,
     )
 
+    estado_gestion = Column(
+        String(20),
+        nullable=False,
+        default="Vigente",
+        server_default="Vigente",
+        index=True,
+    )
+
+    reporte_principal_id = Column(
+        Integer,
+        ForeignKey(
+            "reportes.id",
+            ondelete="RESTRICT",
+        ),
+        nullable=True,
+        index=True,
+    )
+
+    motivo_gestion = Column(
+        Text,
+        nullable=True,
+    )
+
+    fecha_gestion = Column(
+        DateTime,
+        nullable=True,
+    )
+
     # Relación con Mascota
     mascota = relationship("Mascota", backref="reportes")
+
+    reporte_principal = relationship(
+        "Reporte",
+        remote_side=[id],
+        foreign_keys=[reporte_principal_id],
+        backref="reportes_duplicados",
+    )
 
     # Relación 1 a 1 con Contacto (HU5)
     contacto = relationship(

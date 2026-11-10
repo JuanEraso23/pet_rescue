@@ -8,6 +8,8 @@ from pydantic import (
     model_validator,
 )
 
+from app.schemas.gestion_reporte import EstadoGestion
+
 
 EstadoRevision = Literal[
     "Pendiente",
@@ -67,6 +69,12 @@ class ReporteAdminResumen(BaseModel):
     titulo: str
     estado: str
     estado_revision: EstadoRevision
+
+    estado_gestion: EstadoGestion
+    reporte_principal_id: int | None
+    codigo_reporte_principal: str | None
+    fecha_gestion: datetime | None
+
     nombre_mascota: str | None
     especie: str
     ubicacion_extravio: str
@@ -83,6 +91,13 @@ class ReporteAdminDetalle(BaseModel):
     tipo: str
     estado: str
     estado_revision: EstadoRevision
+    estado_gestion: EstadoGestion
+
+    reporte_principal_id: int | None
+    codigo_reporte_principal: str | None
+
+    motivo_gestion: str | None
+    fecha_gestion: datetime | None
 
     ubicacion_extravio: str
     fecha_extravio: date
