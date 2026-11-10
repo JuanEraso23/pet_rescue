@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/resumen_reporte.dart';
 import '../services/reporte_service.dart';
+import 'admin_reportes_screen.dart';
 import 'detalle_reporte_screen.dart';
 import 'registro_reporte_screen.dart';
 
@@ -136,6 +137,17 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     } finally {
       if (mounted) setState(() => _aplicandoFiltros = false);
     }
+  }
+
+  Future<void> _abrirAdministracion() async {
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const AdminReportesScreen()));
+
+    if (!mounted) {
+      return;
+    }
+
+    await _actualizarReportes();
   }
 
   Future<void> _abrirRegistro() async {
@@ -773,6 +785,11 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
       appBar: AppBar(
         title: const Text('Reportes de mascotas'),
         actions: [
+          IconButton(
+            onPressed: _abrirAdministracion,
+            tooltip: 'Administración de reportes',
+            icon: const Icon(Icons.admin_panel_settings_outlined),
+          ),
           IconButton(
             onPressed: _aplicandoFiltros ? null : _actualizarReportes,
             tooltip: 'Actualizar reportes',

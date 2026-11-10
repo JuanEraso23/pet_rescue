@@ -30,7 +30,29 @@ class Reporte(Base):
     ubicacion_extravio = Column(String(200), nullable=False)
     fecha_extravio = Column(Date, nullable=False)
     hora_extravio = Column(Time)
-    fecha_creacion = Column(DateTime, nullable=False, server_default=func.now())
+    fecha_creacion = Column(
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    estado_revision = Column(
+        String(20),
+        nullable=False,
+        default="Pendiente",
+        server_default="Pendiente",
+        index=True,
+    )
+
+    fecha_revision = Column(
+        DateTime,
+        nullable=True,
+    )
+
+    observacion_revision = Column(
+        Text,
+        nullable=True,
+    )
 
     # Relación con Mascota
     mascota = relationship("Mascota", backref="reportes")
