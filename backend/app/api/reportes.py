@@ -11,6 +11,7 @@ from app.database.connection import get_db
 from app.models.contacto_reporte import ContactoReporte
 from app.models.mascota import Mascota
 from app.models.reporte import Reporte
+from app.models.denuncia_reporte import DenunciaReporte
 from app.schemas.contacto_reporte import (
     ContactoCreate,
     ContactoOut,
@@ -21,6 +22,11 @@ from app.schemas.estado_reporte import (
     EstadoReporteUpdate,
 )
 from app.schemas.reporte import ReporteCreate, ReporteUpdate
+from app.schemas.denuncia_reporte import (
+    DenunciaCreate,
+    DenunciaOut,
+    DenunciaResumen,
+)
 
 
 router = APIRouter(
@@ -753,3 +759,78 @@ def actualizar_reporte(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="No fue posible actualizar el reporte.",
         ) from error
+
+
+# ============================================================
+# HU20 - Denunciar publicaciones
+# ============================================================
+
+
+@router.post(
+    "/{reporte_id}/denuncias",
+    response_model=DenunciaOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def crear_denuncia(
+    reporte_id: int,
+    datos: DenunciaCreate,
+    db: Session = Depends(get_db),
+):
+    # 1. Verificar que el reporte existe
+    reporte = db.get(Reporte, reporte_id)
+    if reporte is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reporte no encontrado.",
+        )
+
+    # 2. Crear la denuncia
+    denuncia = DenunciaReporte(
+        reporte_id=reporte_id,
+        motivo=datos.motivo,
+        descripcion=datos.descripcion,
+        estado="Pendiente",
+    )
+
+    try:
+        db.add(denuncia)
+        db.commit()
+        db.refresh(denuncia)
+        return denuncia
+    except Exception as error:
+        db.rollback()
+        print("ERROR AL GUARDAR DENUNCIA:")
+        print(repr(error))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="No fue posible registrar la denuncia.",
+        ) from error
+
+
+@router.get(
+    "/{reporte_id}/denuncias/resumen",
+    response_model=DenunciaResumen,
+)
+def consultar_resumen_denuncias(
+    reporte_id: int,
+    db: Session = Depends(get_db),
+):
+    # 1. Verificar que el reporte existe
+    reporte = db.get(Reporte, reporte_id)
+    if reporte is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Reporte no encontrado.",
+        )
+
+    # 2. Contar denuncias totales y pendientes
+    total = db.query(DenunciaReporte).filter(DenunciaReporte.reporte_id == reporte_id).count()
+    pendientes = db.query(DenunciaReporte).filter(
+        DenunciaReporte.reporte_id == reporte_id,
+        DenunciaReporte.estado == "Pendiente"
+    ).count()
+
+    return {
+        "total": total,
+        "pendientes": pendientes,
+    }

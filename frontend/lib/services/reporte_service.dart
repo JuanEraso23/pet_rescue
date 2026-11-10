@@ -6,6 +6,7 @@ import 'package:http_parser/http_parser.dart';
 
 import '../models/avistamiento.dart';
 import '../models/contacto_reporte.dart';
+import '../models/denuncia_reporte.dart';
 import '../models/fotografia_reporte.dart';
 import '../models/reporte.dart';
 import '../models/resumen_reporte.dart';
@@ -92,6 +93,28 @@ class ReporteService {
       }
 
       final cuerpo = _decodificarMapa(response);
+
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvió una respuesta inválida.');
+    }
+  }
+
+  Future<DenunciaReporte> crearDenuncia(DenunciaReporte denuncia) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/reportes/${denuncia.reporteId}/denuncias'),
+        headers: const {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode(denuncia.toJson()),
+      );
+
+      final cuerpo = _decodificarMapa(response);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return DenunciaReporte.fromJson(cuerpo);
+      }
 
       throw Exception(_obtenerMensajeError(cuerpo));
     } on http.ClientException {
