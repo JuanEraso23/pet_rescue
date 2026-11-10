@@ -4,6 +4,7 @@ import '../models/resumen_reporte.dart';
 import '../services/reporte_service.dart';
 import 'admin_reportes_screen.dart';
 import 'detalle_reporte_screen.dart';
+import 'recomendaciones_screen.dart';
 import 'registro_reporte_screen.dart';
 
 class ListadoReportesScreen extends StatefulWidget {
@@ -148,6 +149,12 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
     }
 
     await _actualizarReportes();
+  }
+
+  // HU22: pantalla informativa local, no requiere recargar el listado.
+  void _abrirRecomendaciones() {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const RecomendacionesScreen()));
   }
 
   Future<void> _abrirRegistro() async {
@@ -785,6 +792,11 @@ class _ListadoReportesScreenState extends State<ListadoReportesScreen> {
       appBar: AppBar(
         title: const Text('Reportes de mascotas'),
         actions: [
+          IconButton(
+            tooltip: 'Recomendaciones',
+            icon: const Icon(Icons.lightbulb_outline),
+            onPressed: _abrirRecomendaciones,
+          ),
           IconButton(
             onPressed: _abrirAdministracion,
             tooltip: 'Administración de reportes',
