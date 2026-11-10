@@ -110,18 +110,6 @@ class ReporteService {
       final response = await http.get(
         Uri.parse('$baseUrl/reportes/$reporteId/notificaciones'),
       );
-  Future<List<DenunciaReporte>> listarDenunciasAdmin({
-    String? estado,
-  }) async {
-    try {
-      final filtro = estado?.trim();
-      final uri = Uri.parse('$baseUrl/admin/denuncias').replace(
-        queryParameters: filtro == null || filtro.isEmpty || filtro == 'Todas'
-            ? null
-            : {'estado': filtro},
-      );
-      final response = await http.get(uri);
-
       if (response.statusCode == 200) {
         final contenido = jsonDecode(utf8.decode(response.bodyBytes));
 
@@ -131,7 +119,7 @@ class ReporteService {
 
         return contenido
             .map(
-z              (elemento) => NotificacionCoincidencia.fromJson(
+              (elemento) => NotificacionCoincidencia.fromJson(
                 elemento as Map<String, dynamic>,
               ),
             )
@@ -156,6 +144,55 @@ z              (elemento) => NotificacionCoincidencia.fromJson(
         Uri.parse(
           '$baseUrl/reportes/$reporteId/notificaciones/$notificacionId/leida',
         ),
+      );
+
+      if (response.statusCode == 200) {
+        return;
+      }
+
+      final cuerpo = _decodificarMapa(response);
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvió una respuesta inválida.');
+    }
+  }
+
+  Future<List<DenunciaReporte>> listarDenunciasAdmin({String? estado}) async {
+    try {
+      final filtro = estado?.trim();
+      final uri = Uri.parse('$baseUrl/admin/denuncias').replace(
+        queryParameters: filtro == null || filtro.isEmpty || filtro == 'Todas'
+            ? null
+            : {'estado': filtro},
+      );
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final contenido = jsonDecode(utf8.decode(response.bodyBytes));
+
+        if (contenido is! List) {
+          throw const FormatException();
+        }
+
+        return contenido
+            .map(
+              (elemento) =>
+                  DenunciaReporte.fromJson(elemento as Map<String, dynamic>),
+            )
+            .toList();
+      }
+
+      final cuerpo = _decodificarMapa(response);
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvió una respuesta inválida.');
+    }
+  }
+
   Future<void> revisarDenuncia({
     required int denunciaId,
     required String estado,
