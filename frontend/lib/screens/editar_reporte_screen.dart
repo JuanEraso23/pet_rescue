@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../models/reporte.dart';
 import '../services/reporte_service.dart';
+import '../widgets/mapa_reporte.dart';
 
 class EditarReporteScreen extends StatefulWidget {
   final DetalleReporte reporte;
@@ -36,6 +38,9 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
   TimeOfDay? _horaExtravio;
 
   bool _guardando = false;
+
+  // HU18: ubicación en el mapa; null si el reporte no tiene coordenadas.
+  LatLng? _ubicacionMapa;
 
   static const List<String> _especies = [
     'Perro',
@@ -84,6 +89,12 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
     _ubicacionController = TextEditingController(
       text: widget.reporte.ubicacionExtravio,
     );
+
+    final latitud = widget.reporte.latitud;
+    final longitud = widget.reporte.longitud;
+    _ubicacionMapa = latitud != null && longitud != null
+        ? LatLng(latitud, longitud)
+        : null;
 
     _especie = widget.reporte.especie;
     _tamano = widget.reporte.tamano;
@@ -335,6 +346,16 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
 
     if (ubicacion != widget.reporte.ubicacionExtravio) {
       cambios['ubicacion_extravio'] = ubicacion;
+    }
+
+    // HU18: las coordenadas se envían siempre juntas.
+    final latitud = _ubicacionMapa?.latitude;
+    final longitud = _ubicacionMapa?.longitude;
+
+    if (latitud != widget.reporte.latitud ||
+        longitud != widget.reporte.longitud) {
+      cambios['latitud'] = latitud;
+      cambios['longitud'] = longitud;
     }
 
     final fecha = _formatearFecha(_fechaExtravio);
@@ -679,6 +700,12 @@ class _EditarReporteScreenState extends State<EditarReporteScreen> {
               validator: (valor) {
                 return _validarTexto(valor, 'La ubicación', 3);
               },
+            ),
+            const SizedBox(height: 10),
+            CampoUbicacionMapa(
+              ubicacion: _ubicacionMapa,
+              habilitado: !_guardando,
+              onChanged: (punto) => setState(() => _ubicacionMapa = punto),
             ),
             const SizedBox(height: 10),
             Card(

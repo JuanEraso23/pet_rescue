@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -8,6 +9,7 @@ import '../models/contacto_reporte.dart';
 import '../models/fotografia_reporte.dart';
 import '../models/reporte.dart';
 import '../services/reporte_service.dart';
+import '../widgets/mapa_reporte.dart';
 import 'registro_avistamiento_screen.dart';
 import 'editar_reporte_screen.dart';
 
@@ -1157,6 +1159,17 @@ Si tienes información, consulta este reporte en Pet Rescue.
                       etiqueta: 'Hora',
                       valor: reporte.horaExtravio ?? 'No registrada',
                     ),
+                    // HU18: mapa de solo lectura si hay coordenadas.
+                    if (reporte.latitud != null && reporte.longitud != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: MapaReporte(
+                          ubicacion: LatLng(
+                            reporte.latitud!,
+                            reporte.longitud!,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 16),

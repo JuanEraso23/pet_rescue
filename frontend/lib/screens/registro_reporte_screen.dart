@@ -2,8 +2,10 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../services/reporte_service.dart';
+import '../widgets/mapa_reporte.dart';
 import 'confirmacion_reporte_screen.dart';
 
 class RegistroReporteScreen extends StatefulWidget {
@@ -40,6 +42,9 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
   final TextEditingController _microchipController = TextEditingController();
 
   final TextEditingController _ubicacionController = TextEditingController();
+
+  // HU18: zona opcional elegida en el mapa.
+  LatLng? _ubicacionMapa;
 
   final TextEditingController _contactoController = TextEditingController();
 
@@ -202,6 +207,8 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
       'ubicacion_extravio': _ubicacionController.text.trim(),
       'fecha_extravio': _formatearFecha(_fechaExtravio!),
       'hora_extravio': _formatearHora(_horaExtravio),
+      'latitud': _ubicacionMapa?.latitude,
+      'longitud': _ubicacionMapa?.longitude,
     };
 
     try {
@@ -773,6 +780,12 @@ class _RegistroReporteScreenState extends State<RegistroReporteScreen> {
                 validator: (valor) {
                   return _validarTexto(valor, 'La ubicacion', 3);
                 },
+              ),
+              const SizedBox(height: 12),
+              CampoUbicacionMapa(
+                ubicacion: _ubicacionMapa,
+                habilitado: !_cargando,
+                onChanged: (punto) => setState(() => _ubicacionMapa = punto),
               ),
               const SizedBox(height: 12),
               Card(

@@ -44,6 +44,9 @@ class DetalleReporte {
   final String? senasParticulares;
   final String? numeroPlaca;
   final String? numeroMicrochip;
+  // HU18: coordenadas aproximadas opcionales.
+  final double? latitud;
+  final double? longitud;
 
   const DetalleReporte({
     required this.id,
@@ -65,6 +68,8 @@ class DetalleReporte {
     required this.senasParticulares,
     this.numeroPlaca,
     this.numeroMicrochip,
+    this.latitud,
+    this.longitud,
   });
 
   factory DetalleReporte.fromJson(Map<String, dynamic> json) {
@@ -81,6 +86,8 @@ class DetalleReporte {
       ubicacionExtravio: json['ubicacion_extravio'] as String,
       fechaExtravio: json['fecha_extravio'] as String,
       horaExtravio: json['hora_extravio'] as String?,
+      latitud: (json['latitud'] as num?)?.toDouble(),
+      longitud: (json['longitud'] as num?)?.toDouble(),
       nombreMascota: mascota['nombre'] as String?,
       especie: mascota['especie'] as String,
       raza: mascota['raza'] as String?,
