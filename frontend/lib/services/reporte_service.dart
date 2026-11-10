@@ -6,6 +6,7 @@ import 'package:http_parser/http_parser.dart';
 
 import '../models/avistamiento.dart';
 import '../models/contacto_reporte.dart';
+import '../models/denuncia_reporte.dart';
 import '../models/fotografia_reporte.dart';
 import '../models/reporte.dart';
 import '../models/resumen_reporte.dart';
@@ -93,6 +94,72 @@ class ReporteService {
 
       final cuerpo = _decodificarMapa(response);
 
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvió una respuesta inválida.');
+    }
+  }
+
+  Future<List<DenunciaReporte>> listarDenunciasAdmin({
+    String? estado,
+  }) async {
+    try {
+      final filtro = estado?.trim();
+      final uri = Uri.parse('$baseUrl/admin/denuncias').replace(
+        queryParameters: filtro == null || filtro.isEmpty || filtro == 'Todas'
+            ? null
+            : {'estado': filtro},
+      );
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final contenido = jsonDecode(utf8.decode(response.bodyBytes));
+
+        if (contenido is! List) {
+          throw const FormatException();
+        }
+
+        return contenido
+            .map(
+              (elemento) => DenunciaReporte.fromJson(
+                elemento as Map<String, dynamic>,
+              ),
+            )
+            .toList();
+      }
+
+      final cuerpo = _decodificarMapa(response);
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvió una respuesta inválida.');
+    }
+  }
+
+  Future<void> revisarDenuncia({
+    required int denunciaId,
+    required String estado,
+    String? observacion,
+  }) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/admin/denuncias/$denunciaId'),
+        headers: const {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({
+          'estado': estado,
+          if (observacion != null && observacion.isNotEmpty)
+            'observacion_admin': observacion,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return;
+      }
+
+      final cuerpo = _decodificarMapa(response);
       throw Exception(_obtenerMensajeError(cuerpo));
     } on http.ClientException {
       throw Exception('No fue posible conectarse con el servidor.');
