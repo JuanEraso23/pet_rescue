@@ -10,6 +10,7 @@ import '../models/fotografia_reporte.dart';
 import '../models/reporte.dart';
 import '../services/reporte_service.dart';
 import '../widgets/mapa_reporte.dart';
+import 'denunciar_reporte_screen.dart';
 import 'registro_avistamiento_screen.dart';
 import 'editar_reporte_screen.dart';
 
@@ -978,7 +979,39 @@ Si tienes información, consulta este reporte en Pet Rescue.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalle del reporte')),
+      appBar: AppBar(
+        title: const Text('Detalle del reporte'),
+        actions: [
+          FutureBuilder<DetalleReporte>(
+            future: _reporte,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const SizedBox.shrink();
+              }
+
+              final reporte = snapshot.data!;
+
+              return IconButton(
+                icon: const Icon(
+                  Icons.report_gmailerrorred,
+                  color: Colors.redAccent,
+                ),
+                tooltip: 'Denunciar publicación',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => DenunciarReporteScreen(
+                        reporteId: reporte.id,
+                        codigoReporte: reporte.codigo,
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
       body: FutureBuilder<DetalleReporte>(
         future: _reporte,
         builder: (context, snapshot) {
