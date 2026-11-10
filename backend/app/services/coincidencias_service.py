@@ -25,57 +25,78 @@ def buscar_y_crear_coincidencias(db: Session, reporte_id: int):
     for otro in otros_reportes:
         coincidencias = 0
 
-        # Comparar raza parcial
-        if (reporte_base.mascota.raza and otro.mascota.raza and 
-            reporte_base.mascota.raza.lower() in otro.mascota.raza.lower()):
+        raza_match = (
+            reporte_base.mascota.raza
+            and otro.mascota.raza
+            and (
+                reporte_base.mascota.raza.lower() in otro.mascota.raza.lower()
+                or otro.mascota.raza.lower() in reporte_base.mascota.raza.lower()
+            )
+        )
+        if raza_match:
             coincidencias += 1
-            
-        # Comparar color parcial
-        if (reporte_base.mascota.color and otro.mascota.color and 
-            reporte_base.mascota.color.lower() in otro.mascota.color.lower()):
+
+        color_match = (
+            reporte_base.mascota.color
+            and otro.mascota.color
+            and (
+                reporte_base.mascota.color.lower() in otro.mascota.color.lower()
+                or otro.mascota.color.lower() in reporte_base.mascota.color.lower()
+            )
+        )
+        if color_match:
             coincidencias += 1
-            
+
         # Comparar tamaño exacto
-        if (reporte_base.mascota.tamano and otro.mascota.tamano and 
-            reporte_base.mascota.tamano == otro.mascota.tamano):
+        if (
+            reporte_base.mascota.tamano
+            and otro.mascota.tamano
+            and reporte_base.mascota.tamano == otro.mascota.tamano
+        ):
             coincidencias += 1
-            
-        # Comparar ubicación parcial
-        if (reporte_base.ubicacion_extravio and otro.ubicacion_extravio and 
-            reporte_base.ubicacion_extravio.lower() in otro.ubicacion_extravio.lower()):
+
+        ubicacion_match = (
+            reporte_base.ubicacion_extravio
+            and otro.ubicacion_extravio
+            and (
+                reporte_base.ubicacion_extravio.lower()
+                in otro.ubicacion_extravio.lower()
+                or otro.ubicacion_extravio.lower()
+                in reporte_base.ubicacion_extravio.lower()
+            )
+        )
+        if ubicacion_match:
             coincidencias += 1
 
         # Regla: especie exacta (ya filtrada arriba) + al menos 2 adicionales
         if coincidencias >= 2:
-            # Evitar duplicados
-            existente = db.execute(
+            notificacion_existente = db.execute(
                 select(NotificacionCoincidencia).where(
                     or_(
-                        and_(NotificacionCoincidencia.reporte_id == reporte_id, NotificacionCoincidencia.reporte_coincidente_id == otro.id),
-                        and_(NotificacionCoincidencia.reporte_id == otro.id, NotificacionCoincidencia.reporte_coincidente_id == reporte_id)
+                        and_(
+                            NotificacionCoincidencia.reporte_id == reporte_base.id,
+                            NotificacionCoincidencia.reporte_coincidente_id == otro.id,
+                        ),
+                        and_(
+                            NotificacionCoincidencia.reporte_id == otro.id,
+                            NotificacionCoincidencia.reporte_coincidente_id
+                            == reporte_base.id,
+                        ),
                     )
                 )
-            ).scalar_one_or_none()
+            ).scalars().first()
 
-            if not existente:
-                mensaje = f"Posible coincidencia encontrada con el reporte {otro.codigo} ({otro.mascota.nombre or 'Sin nombre'})."
-                
-                # Crear notificación para el reporte base
+            if not notificacion_existente:
                 notificacion = NotificacionCoincidencia(
-                    reporte_id=reporte_id,
+                    reporte_id=reporte_base.id,
                     reporte_coincidente_id=otro.id,
-                    mensaje=mensaje
+                    mensaje=(
+                        f"Posible coincidencia encontrada: "
+                        f"{otro.codigo} - {otro.titulo}"
+                    ),
                 )
                 db.add(notificacion)
-                
-                # Crear notificación inversa para el otro reporte
-                notificacion_inversa = NotificacionCoincidencia(
-                    reporte_id=otro.id,
-                    reporte_coincidente_id=reporte_id,
-                    mensaje=f"Posible coincidencia encontrada con el reporte {reporte_base.codigo} ({reporte_base.mascota.nombre or 'Sin nombre'})."
-                )
-                db.add(notificacion_inversa)
-                
+
     try:
         db.commit()
     except Exception as e:

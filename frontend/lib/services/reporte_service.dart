@@ -7,6 +7,7 @@ import 'package:http_parser/http_parser.dart';
 import '../models/avistamiento.dart';
 import '../models/contacto_reporte.dart';
 import '../models/fotografia_reporte.dart';
+import '../models/notificacion_coincidencia.dart';
 import '../models/reporte.dart';
 import '../models/resumen_reporte.dart';
 
@@ -93,6 +94,63 @@ class ReporteService {
 
       final cuerpo = _decodificarMapa(response);
 
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvió una respuesta inválida.');
+    }
+  }
+
+  Future<List<NotificacionCoincidencia>> listarNotificaciones(
+    int reporteId,
+  ) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/reportes/$reporteId/notificaciones'),
+      );
+
+      if (response.statusCode == 200) {
+        final contenido = jsonDecode(utf8.decode(response.bodyBytes));
+
+        if (contenido is! List) {
+          throw const FormatException();
+        }
+
+        return contenido
+            .map(
+              (elemento) => NotificacionCoincidencia.fromJson(
+                elemento as Map<String, dynamic>,
+              ),
+            )
+            .toList();
+      }
+
+      final cuerpo = _decodificarMapa(response);
+      throw Exception(_obtenerMensajeError(cuerpo));
+    } on http.ClientException {
+      throw Exception('No fue posible conectarse con el servidor.');
+    } on FormatException {
+      throw Exception('El servidor devolvió una respuesta inválida.');
+    }
+  }
+
+  Future<void> marcarNotificacionLeida(
+    int reporteId,
+    int notificacionId,
+  ) async {
+    try {
+      final response = await http.patch(
+        Uri.parse(
+          '$baseUrl/reportes/$reporteId/notificaciones/$notificacionId/leida',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        return;
+      }
+
+      final cuerpo = _decodificarMapa(response);
       throw Exception(_obtenerMensajeError(cuerpo));
     } on http.ClientException {
       throw Exception('No fue posible conectarse con el servidor.');
