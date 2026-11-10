@@ -4,6 +4,10 @@ class ReporteAdminResumen {
   final String titulo;
   final String estado;
   final String estadoRevision;
+  final String estadoGestion;
+  final int? reportePrincipalId;
+  final String? codigoReportePrincipal;
+  final DateTime? fechaGestion;
   final String? nombreMascota;
   final String especie;
   final String ubicacionExtravio;
@@ -17,6 +21,10 @@ class ReporteAdminResumen {
     required this.titulo,
     required this.estado,
     required this.estadoRevision,
+    required this.estadoGestion,
+    required this.reportePrincipalId,
+    required this.codigoReportePrincipal,
+    required this.fechaGestion,
     required this.nombreMascota,
     required this.especie,
     required this.ubicacionExtravio,
@@ -32,6 +40,10 @@ class ReporteAdminResumen {
       titulo: json['titulo'] as String,
       estado: json['estado'] as String,
       estadoRevision: json['estado_revision'] as String,
+      estadoGestion: json['estado_gestion'] as String,
+      reportePrincipalId: json['reporte_principal_id'] as int?,
+      codigoReportePrincipal: json['codigo_reporte_principal'] as String?,
+      fechaGestion: _fechaOpcional(json['fecha_gestion']),
       nombreMascota: json['nombre_mascota'] as String?,
       especie: json['especie'] as String,
       ubicacionExtravio: json['ubicacion_extravio'] as String,
@@ -50,6 +62,13 @@ class ReporteAdminDetalle {
   final String tipo;
   final String estado;
   final String estadoRevision;
+  final String estadoGestion;
+
+  final int? reportePrincipalId;
+  final String? codigoReportePrincipal;
+
+  final String? motivoGestion;
+  final DateTime? fechaGestion;
 
   final String ubicacionExtravio;
   final String fechaExtravio;
@@ -74,6 +93,11 @@ class ReporteAdminDetalle {
     required this.tipo,
     required this.estado,
     required this.estadoRevision,
+    required this.estadoGestion,
+    required this.reportePrincipalId,
+    required this.codigoReportePrincipal,
+    required this.motivoGestion,
+    required this.fechaGestion,
     required this.ubicacionExtravio,
     required this.fechaExtravio,
     required this.fechaCreacion,
@@ -97,6 +121,11 @@ class ReporteAdminDetalle {
       tipo: json['tipo'] as String,
       estado: json['estado'] as String,
       estadoRevision: json['estado_revision'] as String,
+      estadoGestion: json['estado_gestion'] as String,
+      reportePrincipalId: json['reporte_principal_id'] as int?,
+      codigoReportePrincipal: json['codigo_reporte_principal'] as String?,
+      motivoGestion: json['motivo_gestion'] as String?,
+      fechaGestion: _fechaOpcional(json['fecha_gestion']),
       ubicacionExtravio: json['ubicacion_extravio'] as String,
       fechaExtravio: json['fecha_extravio'] as String,
       fechaCreacion: DateTime.parse(json['fecha_creacion'] as String),

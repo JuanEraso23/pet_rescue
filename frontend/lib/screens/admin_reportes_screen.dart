@@ -74,13 +74,13 @@ class _AdminReportesScreenState extends State<AdminReportesScreen> {
   }
 
   Future<void> _abrirRevision(ReporteAdminResumen reporte) async {
-    final actualizado = await Navigator.of(context).push<bool>(
+    await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => AdminRevisionReporteScreen(reporteId: reporte.id),
       ),
     );
 
-    if (!mounted || actualizado != true) {
+    if (!mounted) {
       return;
     }
 
@@ -126,6 +126,32 @@ class _AdminReportesScreenState extends State<AdminReportesScreen> {
     }
   }
 
+  Color _colorGestion(String estado) {
+    switch (estado) {
+      case 'Duplicado':
+        return const Color(0xFFE5E7FF);
+
+      case 'Desactualizado':
+        return const Color(0xFFFDE2E2);
+
+      default:
+        return const Color(0xFFDDF5EF);
+    }
+  }
+
+  IconData _iconoGestion(String estado) {
+    switch (estado) {
+      case 'Duplicado':
+        return Icons.copy_all_outlined;
+
+      case 'Desactualizado':
+        return Icons.history_toggle_off_outlined;
+
+      default:
+        return Icons.check_circle_outline;
+    }
+  }
+
   Widget _construirEncabezado(int cantidad) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -145,9 +171,9 @@ class _AdminReportesScreenState extends State<AdminReportesScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Consulta la información publicada '
-                'y registra una decisión '
-                'administrativa.',
+                'Revisa la información publicada '
+                'y gestiona reportes duplicados '
+                'o desactualizados.',
                 style: TextStyle(color: Color(0xFF667781)),
               ),
               const SizedBox(height: 16),
@@ -245,6 +271,14 @@ class _AdminReportesScreenState extends State<AdminReportesScreen> {
                     backgroundColor: _colorRevision(reporte.estadoRevision),
                   ),
                   Chip(
+                    avatar: Icon(
+                      _iconoGestion(reporte.estadoGestion),
+                      size: 18,
+                    ),
+                    label: Text(reporte.estadoGestion),
+                    backgroundColor: _colorGestion(reporte.estadoGestion),
+                  ),
+                  Chip(
                     avatar: const Icon(Icons.flag_outlined, size: 18),
                     label: Text(reporte.estado),
                   ),
@@ -271,6 +305,12 @@ class _AdminReportesScreenState extends State<AdminReportesScreen> {
                 etiqueta: 'Especie',
                 valor: reporte.especie,
               ),
+              if (reporte.codigoReportePrincipal != null)
+                _DatoAdministrativo(
+                  icono: Icons.account_tree_outlined,
+                  etiqueta: 'Principal',
+                  valor: reporte.codigoReportePrincipal!,
+                ),
               _DatoAdministrativo(
                 icono: Icons.location_on_outlined,
                 etiqueta: 'Ubicación',
@@ -291,6 +331,12 @@ class _AdminReportesScreenState extends State<AdminReportesScreen> {
                   icono: Icons.fact_check_outlined,
                   etiqueta: 'Revisado',
                   valor: _formatearFecha(reporte.fechaRevision!),
+                ),
+              if (reporte.fechaGestion != null)
+                _DatoAdministrativo(
+                  icono: Icons.rule_folder_outlined,
+                  etiqueta: 'Gestión',
+                  valor: _formatearFecha(reporte.fechaGestion!),
                 ),
               const SizedBox(height: 14),
               Align(

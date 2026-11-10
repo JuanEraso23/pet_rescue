@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/revision_reporte.dart';
 import '../services/admin_reporte_service.dart';
+import 'admin_gestion_reporte_screen.dart';
 
 class AdminRevisionReporteScreen extends StatefulWidget {
   final int reporteId;
@@ -88,6 +89,32 @@ class _AdminRevisionReporteScreenState
     }
   }
 
+  Color _colorGestion(String estado) {
+    switch (estado) {
+      case 'Duplicado':
+        return const Color(0xFFE5E7FF);
+
+      case 'Desactualizado':
+        return const Color(0xFFFDE2E2);
+
+      default:
+        return const Color(0xFFDDF5EF);
+    }
+  }
+
+  IconData _iconoGestion(String estado) {
+    switch (estado) {
+      case 'Duplicado':
+        return Icons.copy_all_outlined;
+
+      case 'Desactualizado':
+        return Icons.history_toggle_off_outlined;
+
+      default:
+        return Icons.check_circle_outline;
+    }
+  }
+
   void _mostrarMensaje(String mensaje, {required bool esError}) {
     if (!mounted) {
       return;
@@ -101,6 +128,26 @@ class _AdminRevisionReporteScreenState
           backgroundColor: esError ? Colors.redAccent : const Color(0xFF007C83),
         ),
       );
+  }
+
+  Future<void> _abrirGestion(ReporteAdminDetalle reporte) async {
+    final actualizado = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => AdminGestionReporteScreen(reporte: reporte),
+      ),
+    );
+
+    if (!mounted || actualizado != true) {
+      return;
+    }
+
+    setState(_cargarReporte);
+
+    try {
+      await _reporte;
+    } catch (_) {
+      // El FutureBuilder presenta el error.
+    }
   }
 
   Future<void> _solicitarDecision({
@@ -208,6 +255,11 @@ class _AdminRevisionReporteScreenState
           backgroundColor: _colorRevision(reporte.estadoRevision),
         ),
         Chip(
+          avatar: Icon(_iconoGestion(reporte.estadoGestion), size: 18),
+          label: Text('Gestión: ${reporte.estadoGestion}'),
+          backgroundColor: _colorGestion(reporte.estadoGestion),
+        ),
+        Chip(
           avatar: const Icon(Icons.flag_outlined, size: 18),
           label: Text('Estado: ${reporte.estado}'),
         ),
@@ -269,6 +321,54 @@ class _AdminRevisionReporteScreenState
         _FilaAdministrativa(
           etiqueta: 'Señas particulares',
           valor: reporte.senasParticulares ?? 'No registradas',
+        ),
+      ],
+    );
+  }
+
+  Widget _construirGestionActual(ReporteAdminDetalle reporte) {
+    return _SeccionAdministrativa(
+      titulo: 'Gestión del reporte',
+      children: [
+        _FilaAdministrativa(
+          etiqueta: 'Clasificación',
+          valor: reporte.estadoGestion,
+        ),
+        if (reporte.codigoReportePrincipal != null)
+          _FilaAdministrativa(
+            etiqueta: 'Reporte principal',
+            valor: reporte.codigoReportePrincipal!,
+          ),
+        if (reporte.motivoGestion != null)
+          _FilaAdministrativa(
+            etiqueta: 'Motivo',
+            valor: reporte.motivoGestion!,
+          ),
+        if (reporte.fechaGestion != null)
+          _FilaAdministrativa(
+            etiqueta: 'Fecha',
+            valor: _formatearFecha(reporte.fechaGestion!),
+          ),
+        if (reporte.estadoGestion == 'Vigente')
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Text(
+              'El reporte no está marcado como '
+              'duplicado ni desactualizado.',
+              style: TextStyle(color: Color(0xFF667781)),
+            ),
+          ),
+        const SizedBox(height: 4),
+        OutlinedButton.icon(
+          onPressed: () {
+            _abrirGestion(reporte);
+          },
+          icon: const Icon(Icons.rule_folder_outlined),
+          label: Text(
+            reporte.estadoGestion == 'Vigente'
+                ? 'Gestionar reporte'
+                : 'Modificar gestión',
+          ),
         ),
       ],
     );
@@ -419,6 +519,8 @@ class _AdminRevisionReporteScreenState
               _construirInformacionReporte(reporte),
               const SizedBox(height: 16),
               _construirInformacionMascota(reporte),
+              const SizedBox(height: 16),
+              _construirGestionActual(reporte),
               const SizedBox(height: 16),
               if (reporte.estadoRevision == 'Pendiente')
                 _construirFormularioRevision(reporte)
